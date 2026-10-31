@@ -79,8 +79,8 @@ viewer lists them above the page.
 - Markdown shows raw HTML as text.
 - `@OpenUrl` buttons and links in Markdown open only `https:` links, and the
   reader confirms first.
-- A banner above each shared page shows the GitHub user who made it, with a
-  link to the source.
+- A banner above each shared page shows the GitHub user who made it and says
+  that the content is user-generated.
 - The viewer does not open pages larger than 2 MB.
 - The viewer sets a content security policy. Scripts load only from the viewer,
   and data loads only from the viewer and `gist.githubusercontent.com`.

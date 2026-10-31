@@ -1,4 +1,4 @@
-// The parts of the viewer around a page: a banner that says who shared it,
+// The parts of the viewer around a page: a banner that says who made it,
 // and the problems that the page has.
 import type { Problem } from "../../pi/src/checker";
 import { Callout } from "@openuidev/react-ui";
@@ -10,11 +10,12 @@ export function Banner({ route }: { route: Route }) {
 		<header className="banner" data-trusted>
 			<div className="banner-inner">
 				<span>{origin(route)}</span>
-				{route.kind === "gist" && (
-					<a href={`https://gist.github.com/${encodeURIComponent(route.owner)}/${encodeURIComponent(route.id)}`} target="_blank" rel="noopener noreferrer">
-						View source
+				<span>
+					Rendered using{" "}
+					<a href={PROJECT_URL} target="_blank" rel="noopener noreferrer">
+						pi-oui
 					</a>
-				)}
+				</span>
 			</div>
 		</header>
 	);
@@ -42,16 +43,17 @@ export function Problems({ problems }: { problems: Problem[] }) {
 	);
 }
 
+const PROJECT_URL = "https://github.com/ssiyad/pi-oui";
+
 function origin(route: Route) {
-	if (route.kind === "local") return "Local preview from Pi. Only you can see this page.";
-	if (route.kind === "none") return "pi-artifacts";
+	if (route.kind === "local") return "Local preview. Only you can see this page.";
+	if (route.kind === "none") return null;
 	return (
 		<>
-			Page by{" "}
 			<a href={`https://github.com/${encodeURIComponent(route.owner)}`} target="_blank" rel="noopener noreferrer">
 				@{route.owner}
 			</a>
-			, from a GitHub Gist. Its author wrote it, not pi-artifacts.
+			{" "}· User-generated content
 		</>
 	);
 }

@@ -210,9 +210,11 @@ URL fragment:
 Phase 1:
 
 - Render the page and set the title.
-- Show a full-width banner above the page. For a Gist, it says "Page by
-  @owner" and links to the source. For a local page, it says that only the
-  user can see it.
+- Show a full-width banner above the page. For a shared page, it shows the
+  owner's GitHub ID with a link to the profile, says "User-generated
+  content", and says "Rendered using pi-oui" with a link to
+  <https://github.com/ssiyad/pi-oui>. It does not say where the page is
+  stored. For a local page, it says that only the user can see it.
 - Check the page with the same `PageChecker` as `render_ui`. If the page has
   problems, an OpenUI `Callout` lists them above the page. OpenUI drops broken
   statements without an error, and an author without Pi has no other way to
@@ -318,7 +320,7 @@ Phase 1 has no `Query()` support. Phase 2 adds it.
   from the context menu, and dragging a link to the tab bar, open the link
   without a confirm. The reader starts these actions and sees the URL first.
 - The banner shows the GitHub user who made a shared page. A page cannot hide
-  the banner, so readers know that the page is not from pi-artifacts. When the
+  the banner, so readers know that a user made the page. When the
   route changes, the viewer clears the old page before it loads the new one.
 - The route accepts only the characters of GitHub user names and hex Gist IDs.
 - The viewer stops reading a page at 2 MB, so a large page does not freeze
