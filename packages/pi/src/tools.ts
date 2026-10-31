@@ -66,11 +66,11 @@ export function registerTools(pi: ExtensionAPI, pages: Pages, publisher: Publish
 	pi.registerTool({
 		name: "unpublish_ui",
 		label: "Unpublish UI page",
-		description: "Delete the Gist of a page, so its Gist link stops working. The user confirms first. Fragment links cannot be deleted.",
+		description: "Delete the Gist of a page, so its Gist link stops working after about 5 minutes. The user confirms first. Fragment links cannot be deleted.",
 		parameters: Type.Object({ id: ID }),
 		async execute(_id, params, _signal, _onUpdate, ctx) {
 			const outcome = await publisher.unpublish(params.id, confirmUI(ctx));
-			return text(outcome.status === "deleted" ? `Deleted the Gist. This link no longer works: ${outcome.url}` : "The user cancelled. Nothing changed.", outcome);
+			return text(outcome.status === "deleted" ? `Deleted the Gist. This link stops working in about 5 minutes, when the GitHub cache expires: ${outcome.url}` : "The user cancelled. Nothing changed.", outcome);
 		},
 	});
 }

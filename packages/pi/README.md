@@ -50,8 +50,9 @@ two places:
 - **In the link.** The page is compressed into the URL fragment. Browsers do
   not send the fragment to a server. You cannot change or delete the link.
 - **In a secret GitHub Gist.** You can update and delete the page, and the
-  link stays the same. A secret Gist is not private: anyone with the link can
-  read it.
+  link stays the same. GitHub caches the page, so an update or a delete can
+  take about 5 minutes to show. A secret Gist is not private: anyone with the
+  link can read it.
 
 `publish_ui` puts the page in the link when the link is 8 KB or less.
 

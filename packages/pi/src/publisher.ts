@@ -56,7 +56,7 @@ export class Publisher {
 		const gist = bundle.manifest.links.gist;
 		if (!gist) throw new Error("This page has no Gist. A fragment link cannot be deleted, because the page is in the link itself.");
 
-		const message = `The link stops working:\n${gist.url}\n\nPeople who saved a copy of the page keep it.`;
+		const message = `The link stops working in about 5 minutes. GitHub serves a cached copy until then:\n${gist.url}\n\nPeople who saved a copy of the page keep it.`;
 		if (!(await ui.confirm(`Delete the Gist of "${bundle.manifest.title}"?`, message))) return { status: "cancelled" };
 
 		// A Gist that is already gone is deleted.

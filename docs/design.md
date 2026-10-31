@@ -260,6 +260,18 @@ each IP without a login, so the viewer does not use it.
 To update a page, `publish_ui` edits the same Gist. To delete a page,
 `unpublish_ui` deletes the Gist.
 
+We tested this route with a real secret Gist on 2026-10-31. Create, edit and
+delete through `gh` work, and the viewer renders the page from the raw URL
+with no console errors. The raw URL is slow to change:
+
+- After an edit, the raw URL sends the old version for up to 5 minutes.
+- After a delete, the raw URL sends the old page for about 5 to 6 minutes,
+  then 404. The viewer then shows "Cannot load the page (HTTP 404)".
+- A query string does not get a new copy. The response says
+  `x-cache: MISS` and still has the old page, so the cache is behind the CDN.
+
+`publish_ui` and `unpublish_ui` tell the user about this delay.
+
 A secret Gist is not private. Anyone with the link can read it.
 
 ### Which adapter
@@ -348,7 +360,6 @@ workflow deploys `packages/viewer/dist` to GitHub Pages.
 - The npm name and the viewer domain.
 - Can `createQueryManager()` run in Node with Pi tools as the provider?
 - What link length do Slack, WhatsApp and Raven accept?
-- Does the Gist route work with a real secret Gist?
 - Do `message_update` events contain partial tool call arguments?
 
 ## References

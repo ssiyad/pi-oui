@@ -57,7 +57,8 @@ link stays the same.
 `auto` uses `fragment` when the link is 8 KB or less, and `gist` when it is
 longer. A page that already has a Gist keeps it. Use `gist` when the user
 wants to update or delete the page later. `unpublish_ui({ id })` deletes the
-Gist.
+Gist. GitHub caches the page, so an update or a delete takes about 5 minutes
+to show. Tell the user this.
 
 ## Commands for the user
 
