@@ -114,6 +114,10 @@ returns each error to the agent, with the error code, the statement ID and the
 hint. It skips errors with `severity: "warning"`. The agent fixes the page and
 calls `render_ui` again. This is the same loop as a compiler error.
 
+The parser checks only statements that `root` reaches. OpenUI drops the other
+statements without an error. `render_ui` reports the names in
+`meta.unresolved` and `meta.orphaned` as errors.
+
 ### Library files
 
 The Pi package does not import React. At build time, a script reads
@@ -134,7 +138,9 @@ The Pi package does not import React. At build time, a script reads
 ### Skill
 
 The skill teaches the agent the workflow. It includes `prompt.md`, which
-OpenUI writes. The skill loads only when the agent works on a page. Other
+OpenUI writes. `prompt.md` is about 9,000 tokens. It starts with a chat
+preamble that says the whole response must be OpenUI Lang. The skill says that
+this rule applies to `page.oui` only. The skill loads only when the agent works on a page. Other
 turns do not pay for the component reference.
 
 ### Storage
@@ -160,6 +166,10 @@ The viewer wraps the page in `ThemeProvider` from `react-ui`. It uses
 `defaultLightTheme` and `defaultDarkTheme` and follows the
 `prefers-color-scheme` setting of the browser. We do not change the themes.
 
+`ThemeProvider` sets its variables on `body` but does not paint the page. The
+viewer's only CSS sets the `body` background and text color from these
+variables.
+
 ### Routes
 
 GitHub Pages cannot route paths in a single-page app. All routes are in the
@@ -180,10 +190,12 @@ URL fragment:
 
 ### Size
 
-`react-ui` includes Radix, d3, KaTeX and a syntax highlighter. The prebuilt
-OpenUI bundle is about 900 KB gzipped, and the viewer will be close to that.
-This is the cost of no design work. The browser caches the viewer, so a
-second page opens fast.
+The first load is 738 KB gzipped: a 701 KB script and a 37 KB stylesheet.
+KaTeX and icons load only when a page uses them. This is the cost of no design
+work. The browser caches the viewer, so a second page opens fast.
+
+The syntax highlighter of `CodeBlock` is 31% of the script, because it
+contains all Prism languages. See [the spike](spike-phase-1.md).
 
 ### Old pages
 
@@ -268,10 +280,10 @@ Publishing sends content to a public place. `publish_ui` always:
 2. Scans the page for secrets: API keys, tokens, private keys, passwords.
 3. Asks the user to confirm in the TUI.
 
-`lang-core` sends pseudonymous telemetry from its `postinstall` script. Our
-package cannot stop this script. The README tells users to set
-`OPENUI_TELEMETRY_DISABLED=1` before they install. Runtime telemetry is off
-unless the user turns it on.
+`lang-core` sends pseudonymous telemetry from its `postinstall` script. npm 12
+blocks this script by default. Older npm versions run it, and our package
+cannot stop it. The README tells users to set `OPENUI_TELEMETRY_DISABLED=1`
+before they install. Runtime telemetry is off unless the user turns it on.
 
 ## Repository layout
 
@@ -298,11 +310,9 @@ scripts/
 ## Open questions
 
 - The npm name and the viewer domain.
-- Can the build script import `openuiLibrary` in Node, or does it need a
-  browser environment?
 - Can `createQueryManager()` run in Node with Pi tools as the provider?
-- What is the gzip size of the viewer?
 - What link length do Slack, WhatsApp and Raven accept?
+- Does the Gist route work with a real secret Gist?
 - Do `message_update` events contain partial tool call arguments?
 
 ## References

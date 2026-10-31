@@ -1,0 +1,14 @@
+{
+  "name": "pi-artifacts-workspace",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "library": "tsx scripts/library.ts",
+    "build:viewer": "npm run build -w packages/viewer",
+    "size": "node scripts/size.mjs"
+  },
+  "devDependencies": {
+    "tsx": "4.23.15"
+  }
+}

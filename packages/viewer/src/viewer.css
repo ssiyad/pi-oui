@@ -1,0 +1,6 @@
+/* ThemeProvider sets its variables on body but does not paint the page. */
+body {
+	margin: 0;
+	background: var(--openui-background);
+	color: var(--openui-text-neutral-primary);
+}

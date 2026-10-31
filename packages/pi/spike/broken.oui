@@ -1,0 +1,5 @@
+root = Stack([title, chart, missing])
+title = CardHeader(42)
+chart = BarChart(["A", "B"])
+widget = Sparkline([1, 2, 3])
+lone = TextContent("never used")
