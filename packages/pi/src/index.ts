@@ -29,7 +29,7 @@ function registerCommands(pi: ExtensionAPI, pages: Pages, publisher: Publisher):
 			const id = args.trim() || (await pickPage(pages, ctx, "Open which page?"));
 			if (!id) return;
 			const { url, result } = await pages.render(id, false);
-			if (!url) return ctx.ui.notify("The viewer build is missing. Run `npm run build` in the pi-artifacts repo.", "error");
+			if (!url) return ctx.ui.notify("The viewer build is missing. Run `npm run build` in the pi-oui repo.", "error");
 			const opened = await pages.openBrowser(url);
 			ctx.ui.notify(`${opened ? "Opened" : "Open"} ${url}${result.ok ? "" : ` (the page has ${result.errors.length} errors)`}`, result.ok ? "info" : "warning");
 		},

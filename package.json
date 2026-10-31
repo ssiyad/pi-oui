@@ -1,5 +1,5 @@
 {
-  "name": "pi-artifacts-workspace",
+  "name": "pi-oui-workspace",
   "private": true,
   "type": "module",
   "workspaces": [

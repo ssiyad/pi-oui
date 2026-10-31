@@ -15,7 +15,7 @@ export const config = {
 
 	/** The public viewer. Shared links point here. */
 	viewerUrl(): string {
-		const url = process.env.PI_UI_VIEWER_URL ?? "https://ssiyad.github.io/pi-artifacts/";
+		const url = process.env.PI_UI_VIEWER_URL ?? "https://ssiyad.github.io/pi-oui/";
 		return url.endsWith("/") ? url : `${url}/`;
 	},
 

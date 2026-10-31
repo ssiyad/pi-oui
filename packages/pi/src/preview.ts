@@ -55,7 +55,7 @@ export class PreviewServer {
 		if (this.url) return this.url;
 		const server = createServer((req, res) =>
 			this.#handle(req, res).catch((error) => {
-				console.error("pi-artifacts preview:", error);
+				console.error("pi-oui preview:", error);
 				fail(res, 500, "Internal error");
 			}),
 		);

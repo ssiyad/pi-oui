@@ -1,4 +1,4 @@
-# pi-artifacts
+# pi-oui
 
 A Pi package that makes web pages that anyone can open from a link, like
 Claude artifacts. The agent writes the page in
@@ -12,7 +12,7 @@ script. With older npm, turn the telemetry off before you install:
 
 ```fish
 set -x OPENUI_TELEMETRY_DISABLED 1
-pi install npm:pi-artifacts
+pi install npm:pi-oui
 ```
 
 To publish to a Gist, install the [GitHub CLI](https://cli.github.com) and run
@@ -67,7 +67,7 @@ The viewer can open any Gist that has a `page.oui` file in OpenUI Lang, also
 when Pi did not make it:
 
 ```text
-https://ssiyad.github.io/pi-artifacts/#/g/<username>/<gist-id>
+https://ssiyad.github.io/pi-oui/#/g/<username>/<gist-id>
 ```
 
 The viewer runs the same checks as `render_ui`. If the page has problems, the
@@ -92,7 +92,7 @@ viewer lists them above the page.
 | Variable           | Default                                  | Use                                       |
 | ------------------ | ---------------------------------------- | ----------------------------------------- |
 | `PI_UI_DIR`        | `~/.pi/ui`                               | Where pages are kept.                     |
-| `PI_UI_VIEWER_URL` | `https://ssiyad.github.io/pi-artifacts/` | The viewer that links point to.           |
+| `PI_UI_VIEWER_URL` | `https://ssiyad.github.io/pi-oui/` | The viewer that links point to.           |
 | `PI_UI_OPEN`       | `1`                                      | `0` stops `render_ui` opening the browser. |
 | `PI_UI_PORT`       | Random                                   | Port of the local preview.                |
 | `PI_UI_VIEWER_DIR` | The package's `viewer/`                  | Another viewer build for the preview.     |

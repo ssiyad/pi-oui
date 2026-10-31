@@ -1,6 +1,6 @@
 # Design: shareable OpenUI pages from Pi
 
-Status: draft. Working name: `pi-artifacts`. The npm name is not decided.
+Status: draft. Name: `pi-oui`. The viewer is at `https://ssiyad.github.io/pi-oui/`.
 
 ## Goal
 
@@ -374,7 +374,6 @@ workflow deploys `packages/viewer/dist` to GitHub Pages.
 
 ## Open questions
 
-- The npm name and the viewer domain.
 - Can `createQueryManager()` run in Node with Pi tools as the provider?
 - Do `message_update` events contain partial tool call arguments?
 

@@ -48,7 +48,7 @@ export class Pages {
 		} catch (error) {
 			return { bundle, result, opened: false, previewError: (error as Error).message };
 		}
-		if (!preview) return { bundle, result, opened: false, previewError: "The viewer build is missing. Run `npm run build` in the pi-artifacts repo." };
+		if (!preview) return { bundle, result, opened: false, previewError: "The viewer build is missing. Run `npm run build` in the pi-oui repo." };
 
 		preview.notify(id);
 		const url = preview.pageUrl(id);
