@@ -295,6 +295,10 @@ each IP without a login, so the renderer does not use it.
 To update a page, `render_ui` edits the same Gist. To delete a page,
 `unpublish_ui` deletes the Gist.
 
+GitHub keeps each earlier version of a Gist. Because `render_ui` publishes
+each page without errors, the Gist also keeps the drafts. An edit does not
+remove data from an earlier version. Only `unpublish_ui` removes all versions.
+
 We tested this route with a real secret Gist on 2026-10-31. Create, edit and
 delete through `gh` work, and the renderer shows the page from the raw URL
 with no console errors. The raw URL is slow to change:

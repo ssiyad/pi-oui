@@ -98,6 +98,10 @@ The link holds only the Gist ID, never the page. Each `render_ui` updates the
 same Gist, and the link stays the same. GitHub caches the page, so an update
 takes about 5 minutes to show. Tell the user this after an update.
 
+GitHub keeps each earlier version of the Gist. If a version showed data that
+must not be public, an edit does not remove it. Tell the user, and offer
+`unpublish_ui`.
+
 Call `unpublish_ui({ id })` only when the user asks to delete a page. It deletes
 the Gist, and the user confirms first. The next `render_ui` of that page
 publishes it again with a new link.

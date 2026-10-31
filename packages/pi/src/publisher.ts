@@ -12,7 +12,7 @@ import { MAX_PAGE_BYTES, type PageBundle, type Snapshot } from "./store.ts";
 /** The parts of the Pi UI that publishing needs. */
 export interface ConfirmUI {
 	hasUI: boolean;
-	confirm(title: string, message: string): Promise<boolean>;
+	confirm(title: string, message: string, options?: { signal?: AbortSignal }): Promise<boolean>;
 }
 
 export type PublishOutcome =
@@ -40,15 +40,21 @@ export class Publisher {
 	/**
 	 * Creates the Gist of a page, or updates it. The link stays the same after an
 	 * update. The user confirms first only when the page may contain secrets.
+	 * After an abort, nothing goes public. A gh call that runs is not stopped,
+	 * because a stopped create can leave a Gist that the page does not know.
 	 */
-	async publish(id: string, ui: ConfirmUI): Promise<PublishOutcome> {
+	async publish(id: string, ui: ConfirmUI, signal?: AbortSignal): Promise<PublishOutcome> {
+		signal?.throwIfAborted();
 		const bundle = await this.#pages.store.load(id);
 		const plan = await this.#plan(bundle);
 		if (plan.review.secrets.length) {
-			if (!ui.hasUI) throw new Error(`The page may contain secrets, so the user must confirm it in the Pi interface, and there is none. Remove the secrets from the page, then call render_ui again.\n${secretList(plan)}`);
-			if (!(await ui.confirm(`Publish "${bundle.manifest.title}"? It may contain secrets.`, confirmMessage(bundle, plan)))) return { status: "cancelled", review: plan.review };
+			// The error goes to the model and the session, so it names each secret without its characters.
+			if (!ui.hasUI) throw new Error(`The page may contain secrets, so the user must confirm it in the Pi interface, and there is none. Remove the secrets from the page, then call render_ui again.\n${secretList(plan, false)}`);
+			const yes = await ui.confirm(`Publish "${bundle.manifest.title}"? It may contain secrets.`, confirmMessage(bundle, plan), { signal });
+			if (!yes) return { status: "cancelled", review: plan.review };
 		}
 
+		signal?.throwIfAborted();
 		const updated = Boolean(bundle.manifest.links.gist);
 		const url = await this.#toGist(bundle, plan.message);
 		return { status: "published", url, updated, review: plan.review };
@@ -115,12 +121,12 @@ export class Publisher {
 function confirmMessage(bundle: PageBundle, plan: Plan): string {
 	const lines = ["Anyone with the link can open this page.", "", gistText(bundle), `Size: ${kb(plan.bytes)}`];
 	if (plan.snapshot) lines.push(`Data: the query results from ${plan.snapshot.at.slice(0, 16).replace("T", " ")} UTC.`);
-	lines.push(`Hosts in links and images: ${plan.review.hosts.join(", ") || "none"}`, "", secretList(plan));
+	lines.push(`Hosts in links and images: ${plan.review.hosts.join(", ") || "none"}`, "", secretList(plan, true));
 	return lines.join("\n");
 }
 
-function secretList(plan: Plan): string {
-	return ["Possible secrets:", ...plan.review.secrets.map((s) => `  ${secretPlace(s, plan.snapshot)}: ${s.kind} ${s.preview}`)].join("\n");
+function secretList(plan: Plan, preview: boolean): string {
+	return ["Possible secrets:", ...plan.review.secrets.map((s) => `  ${secretPlace(s, plan.snapshot)}: ${s.kind}${preview ? ` ${s.preview}` : ""}`)].join("\n");
 }
 
 // Lines of a snapshot are not lines of page.oui, so name the statement.

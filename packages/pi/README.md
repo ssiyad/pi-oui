@@ -107,6 +107,9 @@ never holds the page.
 - GitHub caches the page, so an update or a delete can take about 5 minutes
   to show.
 - A secret Gist is not private: anyone with the link can read it.
+- GitHub keeps each earlier version of a Gist, and anyone with the link can
+  read them. A change to the page does not remove data from an earlier
+  version. To remove all versions, ask the agent to unpublish the page.
 
 Before a page goes public, Pi looks for possible secrets in the page and in the
 query results, such as tokens and passwords. If it finds any, Pi shows them and

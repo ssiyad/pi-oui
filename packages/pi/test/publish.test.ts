@@ -135,41 +135,83 @@ describe("checker rules for shared pages", () => {
 
 describe("render_ui", () => {
 	type Tool = { name: string; execute: (...args: unknown[]) => Promise<{ content: { text: string }[]; isError?: boolean }> };
+	type Options = { hasUI?: boolean; answer?: boolean; signal?: AbortSignal; tools?: Record<string, unknown> };
 	const tools = new Map<string, Tool>();
-	const ctx = { hasUI: false, ui: { confirm: async () => false }, executeTool: async () => ({}) };
-	const run = async (id: string) => {
-		const result = await tools.get("render_ui")?.execute("call", { id }, undefined, undefined, ctx);
+	const run = async (id: string, { hasUI = false, answer = false, signal, tools: answers = {} }: Options = {}) => {
+		const ctx = {
+			hasUI,
+			ui: { confirm: async () => answer },
+			executeTool: async (name: string) => ({ toolCall: {}, result: { content: [], structuredContent: answers[name] }, isError: !(name in answers) }),
+		};
+		const result = await tools.get("render_ui")?.execute("call", { id }, signal, undefined, ctx);
 		return { text: result?.content[0].text ?? "", isError: result?.isError };
+	};
+	const page = async (title: string, source: string) => {
+		const bundle = await pages.store.create(title);
+		await writeFile(bundle.sourcePath, source);
+		return bundle.manifest.id;
 	};
 
 	before(() => {
 		registerTools({ registerTool: (tool: Tool) => tools.set(tool.name, tool) } as never, pages, publisher, new Importer(pages));
 	});
 
-	it("publishes a page without errors and returns the link", async () => {
-		const bundle = await pages.store.create("Tool");
-		await writeFile(bundle.sourcePath, 'root = Stack([a])\na = Button("Docs", @OpenUrl("https://docs.example/x"))\n');
-		const result = await run(bundle.manifest.id);
-		assert.equal(result.isError, false);
-		assert.match(result.text, /has no errors[\s\S]*Published\. Give the user this link:\nhttps:\/\/v\.example\/#\/g\/ssiyad\/abc123/);
-		assert.match(result.text, /docs\.example\. These hosts see the IP address/);
+	it("publishes a page without errors, then updates it with the same link", async () => {
+		const id = await page("Tool", 'root = Stack([a])\na = Button("Docs", @OpenUrl("https://docs.example/x"))\n');
+		ghCalls = [];
+		const first = await run(id);
+		assert.equal(first.isError, false);
+		assert.match(first.text, /has no errors[\s\S]*Published\. Give the user this link:\nhttps:\/\/v\.example\/#\/g\/ssiyad\/abc123/);
+		assert.match(first.text, /docs\.example\. These hosts see the IP address/);
+
+		const again = await run(id);
+		assert.match(again.text, /Updated the Gist\. The link is the same[\s\S]*/);
+		assert.match(again.text, /https:\/\/v\.example\/#\/g\/ssiyad\/abc123/);
+		assert.deepEqual(ghCalls.map((c) => c.slice(0, 2).join(" ")), ["gist create", "gist edit"]);
+	});
+
+	it("publishes the snapshot of a page with queries", async () => {
+		const id = await page("Tool data", 'root = Stack([t])\nt = Table([Col("Name", data.rows.name)])\ndata = Query("rows", {}, {rows: []})\n');
+		const result = await run(id, { tools: { rows: { rows: [{ name: "Ada" }] } } });
+		assert.equal(result.isError, false, result.text);
+		assert.match(result.text, /Ran 1 queries: data[\s\S]*Published/);
+		const created = ghCalls.find((c) => c[1] === "create");
+		assert.ok(created, "made a Gist");
 	});
 
 	it("does not publish a page with errors", async () => {
-		const bundle = await pages.store.create("Tool broken");
-		await writeFile(bundle.sourcePath, "root = Stack([missing])\n");
+		const id = await page("Tool broken", "root = Stack([missing])\n");
 		ghCalls = [];
-		const result = await run(bundle.manifest.id);
+		const result = await run(id);
 		assert.equal(result.isError, true);
 		assert.doesNotMatch(result.text, /Published/);
 		assert.deepEqual(ghCalls, []);
 	});
 
-	it("reports a failed publish with the check result", async () => {
-		const bundle = await pages.store.create("Tool leak");
-		await writeFile(bundle.sourcePath, LEAK);
-		const result = await run(bundle.manifest.id);
+	it("does not publish after the call is cancelled", async () => {
+		const id = await page("Tool abort", 'root = Stack([TextContent("hi")])\n');
+		ghCalls = [];
+		const result = await run(id, { signal: AbortSignal.abort() });
 		assert.equal(result.isError, true);
-		assert.match(result.text, /has no errors[\s\S]*Not published: The page may contain secrets/);
+		assert.match(result.text, /has no errors[\s\S]*Not published: render_ui was cancelled/);
+		assert.deepEqual(ghCalls, []);
+		assert.equal((await pages.store.load(id)).manifest.links.gist, undefined);
+	});
+
+	it("reports secrets without their characters when there is no UI", async () => {
+		const id = await page("Tool leak", LEAK);
+		const result = await run(id);
+		assert.equal(result.isError, true);
+		assert.match(result.text, /has no errors[\s\S]*Not published: The page may contain secrets[\s\S]*GitHub token/);
+		assert.doesNotMatch(result.text, /ghp_/);
+	});
+
+	it("reports a page that the user did not confirm as not published", async () => {
+		const id = await page("Tool leak no", LEAK);
+		ghCalls = [];
+		const result = await run(id, { hasUI: true, answer: false });
+		assert.equal(result.isError, true);
+		assert.match(result.text, /Not published: the page may contain secrets, and the user said no/);
+		assert.deepEqual(ghCalls, []);
 	});
 });

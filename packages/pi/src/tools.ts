@@ -44,15 +44,16 @@ export function registerTools(pi: ExtensionAPI, pages: Pages, publisher: Publish
 		name: "render_ui",
 		label: "Render UI page",
 		description:
-			"Check page.oui and publish it. Runs each Query() in the page with your tools and saves a snapshot of the results. Returns every error with its statement. Fix the errors in page.oui and call render_ui again until it reports no errors. A page without errors goes into a secret GitHub Gist, and render_ui returns its link. Later calls update the Gist, and the link stays the same. The user confirms first only when the page may contain secrets.",
+			"Check page.oui and publish it. Runs each Query() in the page with your tools and saves a snapshot of the results. Returns every error with its statement. Fix the errors in page.oui and call render_ui again until it reports no errors. A page without errors goes into a secret GitHub Gist, and render_ui returns its link. Later calls update the Gist, and the link stays the same. The user confirms first only when the page may contain secrets. Query results go into the public page: do not query private data unless the user asks for it.",
 		promptSnippet: "Check an OpenUI page and publish it as a shareable link",
 		parameters: Type.Object({ id: ID }),
-		async execute(_id, params, _signal, _onUpdate, ctx) {
+		async execute(_id, params, signal, _onUpdate, ctx) {
 			const outcome = await pages.render(params.id, new PiTools(ctx, OWN_TOOLS));
 			const snapshot = outcome.snapshot && { at: outcome.snapshot.at, queries: outcome.snapshot.queries };
-			const shared = outcome.result.ok ? await share(publisher, params.id, confirmUI(ctx)) : undefined;
+			const shared = outcome.result.ok ? await share(publisher, params.id, confirmUI(ctx), signal) : undefined;
 			const details = { id: params.id, ...outcome.result, snapshot, publish: shared?.outcome, publishError: shared?.error };
-			return { ...text(renderText(outcome, shared), details), isError: !outcome.result.ok || Boolean(shared?.error) };
+			const published = shared?.outcome?.status === "published";
+			return { ...text(renderText(outcome, shared), details), isError: !outcome.result.ok || !published };
 		},
 	});
 
@@ -105,10 +106,11 @@ interface Shared {
 }
 
 // A failed publish must not hide the check result.
-async function share(publisher: Publisher, id: string, ui: ConfirmUI): Promise<Shared> {
+async function share(publisher: Publisher, id: string, ui: ConfirmUI, signal?: AbortSignal): Promise<Shared> {
 	try {
-		return { outcome: await publisher.publish(id, ui) };
+		return { outcome: await publisher.publish(id, ui, signal) };
 	} catch (error) {
+		if (signal?.aborted) return { error: "render_ui was cancelled before the page went public." };
 		return { error: (error as Error).message };
 	}
 }
@@ -132,7 +134,7 @@ function publishText(outcome: PublishOutcome): string {
 }
 
 function confirmUI(ctx: ExtensionContext): ConfirmUI {
-	return { hasUI: ctx.hasUI, confirm: (title, message) => ctx.ui.confirm(title, message) };
+	return { hasUI: ctx.hasUI, confirm: (title, message, options) => ctx.ui.confirm(title, message, options) };
 }
 
 function origin(ctx: ExtensionContext): PageOrigin {
