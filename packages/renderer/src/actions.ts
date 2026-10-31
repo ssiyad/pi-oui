@@ -7,6 +7,13 @@ export function handleAction(event: ActionEvent): void {
 	if (event.type === BuiltinActionType.OpenUrl) openLink(event.params.url);
 }
 
+/** Opens the links of the landing page. The renderer holds that page, so the reader need not confirm. */
+export function handleOwnAction(event: ActionEvent): void {
+	if (event.type !== BuiltinActionType.OpenUrl) return;
+	const url = httpsUrl(event.params.url);
+	if (url) window.open(url.href, "_blank", "noopener,noreferrer");
+}
+
 /**
  * Sends clicks on links through openLink(). Listens on the window in the
  * capture phase, so it runs before the handlers of the components. It guards

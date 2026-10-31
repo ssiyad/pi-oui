@@ -34,6 +34,12 @@ describe("PageChecker", () => {
 		assert.ok(checker.check('root = Stack([CardHeader("x)])').errors.some((e) => e.code === "incomplete"));
 	});
 
+	it("accepts the landing page of the renderer", async () => {
+		const landing = await readFile(new URL("../../renderer/src/landing.oui", import.meta.url), "utf8");
+		const result = checker.check(landing);
+		assert.deepEqual([...result.errors, ...result.warnings], []);
+	});
+
 	it("knows the library version", () => {
 		assert.match(checker.library, /^openui@\d+\.\d+\.\d+$/);
 	});

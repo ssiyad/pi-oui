@@ -90,7 +90,7 @@ const PROJECT_URL = "https://github.com/ssiyad/pi-oui";
 
 function origin(route: Route) {
 	if (route.kind === "local") return "Local preview. Only you can see this page.";
-	if (route.kind === "none") return null;
+	if (route.kind === "none" || route.kind === "home") return null;
 	return (
 		<>
 			<a href={`https://github.com/${encodeURIComponent(route.owner)}`} target="_blank" rel="noopener noreferrer">

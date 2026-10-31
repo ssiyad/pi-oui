@@ -6,11 +6,11 @@ import { ThemeProvider } from "@openuidev/react-ui";
 import { openuiLibrary } from "@openuidev/react-ui/genui-lib";
 import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { guardLinks, handleAction } from "./actions";
+import { guardLinks, handleAction, handleOwnAction } from "./actions";
 import { Banner, Problems } from "./banner";
 import { findProblems } from "./check";
 import { useHash, useLiveReload } from "./hooks";
-import { loadPage, parseRoute } from "./source";
+import { LANDING, loadPage, parseRoute } from "./source";
 
 function App() {
 	const hash = useHash();
@@ -19,6 +19,9 @@ function App() {
 	const [page, setPage] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const problems = useMemo(() => (page ? findProblems(page) : []), [page]);
+	// The landing page comes with the renderer, not from a user, so its links open without a question.
+	// Check the page too: for one render after a route change, the page is still the old one.
+	const own = route.kind === "home" && page === LANDING;
 	useEffect(guardLinks, []);
 
 	// A new route must not show the old page under the banner of the new owner.
@@ -45,9 +48,9 @@ function App() {
 	return (
 		<ThemeProvider mode={colorScheme()}>
 			<Banner route={route} />
-			<main className="renderer">
+			<main className="renderer" data-trusted={own || undefined}>
 				{error ? <p>{error}</p> : <Problems problems={problems} />}
-				{!error && <Renderer library={openuiLibrary} response={page} isStreaming={false} onAction={handleAction} />}
+				{!error && <Renderer library={openuiLibrary} response={page} isStreaming={false} onAction={own ? handleOwnAction : handleAction} />}
 			</main>
 		</ThemeProvider>
 	);
