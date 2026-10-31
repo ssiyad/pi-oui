@@ -444,12 +444,6 @@ workflow deploys `packages/renderer/dist` to GitHub Pages.
    Gist, `unpublish_ui`, `list_ui`. The renderer on GitHub Pages.
 2. **Live data.** `Query()` in the preview, and snapshots on publish.
    `import_ui` and remix.
-3. **Live preview while the agent writes.** Render the page from the
-   `message_update` events, before the tool call ends.
-
-## Open questions
-
-- Do `message_update` events contain partial tool call arguments?
 
 ## References
 
