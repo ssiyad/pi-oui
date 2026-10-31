@@ -22,22 +22,35 @@ export interface SpecFile {
 	schema: LibraryJSONSchema;
 }
 
+export interface CheckOptions {
+	/** Accept Query() and Mutation(), because a snapshot replaces them. Only Pi has tools to take a snapshot. */
+	allowData?: boolean;
+}
+
 export class PageChecker {
 	/** Library marker of the spec, for example "openui@0.18.1". */
 	readonly library: string;
+	/** Names of the components in the library. */
+	readonly components: string[];
 	#parser: Parser;
 
 	constructor(spec: SpecFile) {
 		this.library = spec.library;
+		this.components = Object.keys(spec.schema.properties ?? {});
 		this.#parser = createParser(spec.schema, spec.root);
 	}
 
+	parse(source: string): ParseResult {
+		return this.#parser.parse(source);
+	}
+
 	/** Checks OpenUI Lang source. Unresolved and unused names are errors. */
-	check(source: string): CheckResult {
+	check(source: string, options: CheckOptions = {}): CheckResult {
 		if (!source.trim()) return failed([{ code: "empty", message: "The page is empty. Write a `root = Stack([...])` statement." }]);
 
 		const result = this.#parser.parse(source);
-		const errors = [...validationErrors(result), ...referenceErrors(result), ...dataErrors(result), ...linkErrors(source)];
+		const data = options.allowData ? [] : dataErrors(result);
+		const errors = [...validationErrors(result), ...referenceErrors(result), ...data, ...linkErrors(source)];
 		const warnings = [...result.meta.errors.filter((e) => isWarning(e) && e.code !== "no-root").map(fromValidation), ...actionWarnings(source)];
 
 		return { ok: errors.length === 0, errors, warnings, statementCount: result.meta.statementCount };
@@ -75,14 +88,14 @@ function referenceErrors(result: ParseResult): Problem[] {
 	return [...unresolved, ...orphaned];
 }
 
-// A shared page has no tools, so Query() and Mutation() never run. Snapshots
-// of query results come in phase 2.
+// A shared page has no tools, so Query() and Mutation() never run. In Pi,
+// render_ui replaces them with a snapshot before the page goes out.
 function dataErrors(result: ParseResult): Problem[] {
 	const statements = [...result.queryStatements, ...result.mutationStatements];
 	return statements.map(({ statementId }) => ({
 		code: "needs-tools",
 		statement: statementId,
-		message: "Query() and Mutation() need tools, and a shared page has none. Put the data in the page as literal values.",
+		message: "Query() and Mutation() need tools, and a shared page has none. Publish the page from Pi, which shares a snapshot of the query results.",
 	}));
 }
 

@@ -4,8 +4,9 @@ import { config } from "./config.ts";
 import { formatProblems } from "./checker.ts";
 import { GistClient, gistLink } from "./links.ts";
 import type { Pages } from "./pages.ts";
-import { type PageReview, reviewPage } from "./review.ts";
-import type { PageBundle } from "./store.ts";
+import { type PageReview, reviewPage, type SecretHit } from "./review.ts";
+import { hasData } from "./snapshot.ts";
+import { MAX_PAGE_BYTES, type PageBundle, type Snapshot } from "./store.ts";
 
 /** The parts of the Pi UI that publishing needs. */
 export interface ConfirmUI {
@@ -20,6 +21,8 @@ export type PublishOutcome =
 interface Plan {
 	message: string;
 	review: PageReview;
+	snapshot?: Snapshot;
+	bytes: number;
 }
 
 export class Publisher {
@@ -67,13 +70,24 @@ export class Publisher {
 	}
 
 	async #plan(bundle: PageBundle): Promise<Plan> {
+		const { checker } = this.#pages;
 		const source = await bundle.readSource();
-		const result = this.#pages.checker.check(source);
+		const result = checker.check(source, { allowData: true });
 		if (!result.ok) throw new Error(`Fix these errors first, then call render_ui:\n${formatProblems(result.errors)}`);
 
+		// A page with queries goes out as the snapshot that the user saw in the preview.
+		const needsSnapshot = hasData(checker.parse(source));
+		const snapshot = needsSnapshot ? await bundle.readSnapshot(source) : undefined;
+		if (needsSnapshot && !snapshot) throw new Error("The page has Query() or Mutation() statements, and page.oui changed after the last snapshot. Call render_ui to run the queries again, then publish.");
+		const shared = snapshot ? { source: snapshot.content, snapshot } : { source };
+		const check = checker.check(shared.source);
+		if (!check.ok) throw new Error(`The snapshot has errors. Call render_ui again:\n${formatProblems(check.errors)}`);
+
 		// The same source goes into the check, the review and the message.
-		const message = await bundle.toMessage(this.#pages.checker.library, source);
-		return { message, review: reviewPage(source, bundle.manifest.title) };
+		const message = await bundle.toMessage(checker.library, shared);
+		const bytes = Buffer.byteLength(message);
+		if (bytes > MAX_PAGE_BYTES) throw new Error(`The page is ${kb(bytes)}. The renderer opens pages up to ${kb(MAX_PAGE_BYTES)}. Make the page or its query results smaller.`);
+		return { message, review: reviewPage(shared.source, bundle.manifest.title), snapshot, bytes };
 	}
 
 	async #toGist(bundle: PageBundle, message: string): Promise<string> {
@@ -102,12 +116,21 @@ function confirmTitle(bundle: PageBundle, plan: Plan): string {
 }
 
 function confirmMessage(bundle: PageBundle, plan: Plan): string {
-	const lines = ["Anyone with the link can open this page.", "", gistText(bundle), `Size: ${kb(plan.message.length)}`];
+	const lines = ["Anyone with the link can open this page.", "", gistText(bundle), `Size: ${kb(plan.bytes)}`];
+	if (plan.snapshot) lines.push(`Data: the query results from ${plan.snapshot.at.slice(0, 16).replace("T", " ")} UTC, as in the preview.`);
 	lines.push(`Hosts in links and images: ${plan.review.hosts.join(", ") || "none"}`);
 	if (plan.review.secrets.length) {
-		lines.push("", "Possible secrets:", ...plan.review.secrets.map((s) => `  ${s.where === "title" ? "title" : `line ${s.where}`}: ${s.kind} ${s.preview}`));
+		lines.push("", "Possible secrets:", ...plan.review.secrets.map((s) => `  ${secretPlace(s, plan.snapshot)}: ${s.kind} ${s.preview}`));
 	}
 	return lines.join("\n");
+}
+
+// Lines of a snapshot are not lines of page.oui, so name the statement.
+function secretPlace(hit: SecretHit, snapshot: Snapshot | undefined): string {
+	if (hit.where === "title") return "title";
+	if (!hit.statement) return `line ${hit.where}`;
+	const result = snapshot?.queries.includes(hit.statement) ? ", a query result" : "";
+	return snapshot ? `\`${hit.statement}\`${result}` : `line ${hit.where} (\`${hit.statement}\`)`;
 }
 
 function gistText(bundle: PageBundle): string {

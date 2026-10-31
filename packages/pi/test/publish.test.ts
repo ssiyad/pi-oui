@@ -152,6 +152,8 @@ describe("PreviewServer", () => {
 	it("refuses other hosts, other files and other methods", async () => {
 		const base = new URL((await pages.preview())?.url ?? "");
 		assert.equal((await get(base, "/", { host: "evil.example" })).status, 403);
+		assert.equal((await get(base, "/", { "sec-fetch-site": "cross-site" })).status, 403);
+		assert.equal((await get(base, "/", { "sec-fetch-site": "same-origin" })).status, 200);
 		assert.equal((await get(base, "/../secret.txt")).status, 404);
 		assert.equal((await get(base, "/%2e%2e/secret.txt")).status, 404);
 		assert.equal((await get(base, "/pages/..%2f..%2fsecret/page.oui")).status, 404);

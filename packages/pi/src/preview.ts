@@ -100,6 +100,8 @@ export class PreviewServer {
 	async #handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
 		// Other sites can reach 127.0.0.1 through DNS rebinding. They cannot fake the Host header.
 		if (!this.#hosts.has(req.headers.host ?? "")) return fail(res, 403, "Wrong host");
+		// The page can hold tool output. Browsers send this header, and only another site sends "cross-site".
+		if (req.headers["sec-fetch-site"] === "cross-site") return fail(res, 403, "Cross-site request");
 		if (req.method !== "GET" && req.method !== "HEAD") return fail(res, 405, "Method not allowed");
 
 		const url = requestUrl(req);
@@ -122,7 +124,7 @@ export class PreviewServer {
 		if (!isPageId(id)) return fail(res, 404, "Not found");
 		const message = await this.#messages(id).catch(() => undefined);
 		if (message === undefined) return fail(res, 404, "Not found");
-		res.writeHead(200, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
+		res.writeHead(200, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" });
 		res.end(message);
 	}
 

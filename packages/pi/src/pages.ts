@@ -1,14 +1,18 @@
 // The page workflow that tools and commands share: make, check and preview.
+import type { ToolProvider } from "@openuidev/lang-core";
 import type { CheckResult, PageChecker } from "./checker.ts";
 import { config } from "./config.ts";
 import type { Exec } from "./links.ts";
 import { PreviewServer } from "./preview.ts";
+import { hasData, Snapshots } from "./snapshot.ts";
 import { readChecker } from "./spec.ts";
-import { type PageBundle, PageStore } from "./store.ts";
+import { type PageBundle, PageStore, type Snapshot } from "./store.ts";
 
 export interface RenderOutcome {
 	bundle: PageBundle;
 	result: CheckResult;
+	/** The query results that the preview shows and publish_ui shares. */
+	snapshot?: Snapshot;
 	/** Preview URL, when the preview runs. */
 	url?: string;
 	/** Why there is no preview. */
@@ -20,6 +24,7 @@ export class Pages {
 	readonly store: PageStore;
 	#exec: Exec;
 	#checker: PageChecker | undefined;
+	#snapshots: Snapshots | undefined;
 	#preview: Promise<PreviewServer | undefined> | undefined;
 	/** When the browser last opened each page. A new tab needs time to connect. */
 	#openedAt = new Map<string, number>();
@@ -35,10 +40,19 @@ export class Pages {
 		return this.#checker;
 	}
 
-	/** Checks a page, saves the result and refreshes its open previews. Opens the browser when asked and the page has no open preview. */
-	async render(id: string, open: boolean): Promise<RenderOutcome> {
+	get snapshots(): Snapshots {
+		this.#snapshots ??= new Snapshots(this.checker);
+		return this.#snapshots;
+	}
+
+	/**
+	 * Checks a page, saves the result and refreshes its open previews. Opens the
+	 * browser when asked and the page has no open preview. With tools, runs the
+	 * queries of the page and saves a snapshot of the results.
+	 */
+	async render(id: string, open: boolean, tools?: ToolProvider): Promise<RenderOutcome> {
 		const bundle = await this.store.load(id);
-		const result = this.checker.check(await bundle.readSource());
+		const { result, snapshot } = await this.#check(bundle, tools);
 		await bundle.update({ check: { at: new Date().toISOString(), ok: result.ok } });
 
 		// A preview failure must not hide the errors that the agent has to fix.
@@ -46,16 +60,31 @@ export class Pages {
 		try {
 			preview = await this.preview();
 		} catch (error) {
-			return { bundle, result, opened: false, previewError: (error as Error).message };
+			return { bundle, result, snapshot, opened: false, previewError: (error as Error).message };
 		}
-		if (!preview) return { bundle, result, opened: false, previewError: "The renderer build is missing. Run `npm run build` in the pi-oui repo." };
+		if (!preview) return { bundle, result, snapshot, opened: false, previewError: "The renderer build is missing. Run `npm run build` in the pi-oui repo." };
 
 		preview.notify(id);
 		const url = preview.pageUrl(id);
 		const justOpened = Date.now() - (this.#openedAt.get(id) ?? 0) < 15_000;
 		const opened = open && config.autoOpen() && result.ok && !justOpened && preview.tabCount(id) === 0 && (await this.openBrowser(url));
 		if (opened) this.#openedAt.set(id, Date.now());
-		return { bundle, result, url, opened };
+		return { bundle, result, snapshot, url, opened };
+	}
+
+	// Errors in the page come first: queries run only on a page without errors.
+	async #check(bundle: PageBundle, tools?: ToolProvider): Promise<{ result: CheckResult; snapshot?: Snapshot }> {
+		const source = await bundle.readSource();
+		const result = this.checker.check(source, { allowData: true });
+		if (!result.ok || !hasData(this.checker.parse(source))) {
+			// A snapshot is for the source it came from. Delete it, so a revert to that source cannot share old data without a new render_ui.
+			await bundle.clearSnapshot();
+			return { result };
+		}
+
+		const outcome = await this.snapshots.take(bundle, source, tools);
+		const errors = [...result.errors, ...outcome.errors];
+		return { result: { ...result, ok: errors.length === 0, errors, warnings: [...result.warnings, ...outcome.warnings] }, snapshot: outcome.snapshot };
 	}
 
 	/** The preview server, started once on first use. Undefined when the renderer build is missing. */

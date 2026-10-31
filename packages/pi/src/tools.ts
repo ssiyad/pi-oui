@@ -4,9 +4,13 @@ import { Type } from "typebox";
 import { formatProblems } from "./checker.ts";
 import type { Pages, RenderOutcome } from "./pages.ts";
 import type { ConfirmUI, Publisher, PublishOutcome } from "./publisher.ts";
+import { PiTools } from "./queries.ts";
 import type { PageManifest } from "./store.ts";
 
 const ID = Type.String({ description: "Page ID from scaffold_ui or list_ui." });
+
+/** The tools of this package. A Query() in a page must not call them. A test checks that the list has every tool. */
+export const OWN_TOOLS = ["scaffold_ui", "render_ui", "list_ui", "publish_ui", "unpublish_ui"];
 
 export function registerTools(pi: ExtensionAPI, pages: Pages, publisher: Publisher): void {
 	pi.registerTool({
@@ -25,15 +29,17 @@ export function registerTools(pi: ExtensionAPI, pages: Pages, publisher: Publish
 	pi.registerTool({
 		name: "render_ui",
 		label: "Render UI page",
-		description: "Check page.oui and show it in the local preview. Returns every error with its statement. Fix the errors in page.oui and call render_ui again until it reports no errors.",
+		description:
+			"Check page.oui and show it in the local preview. Runs each Query() in the page with your tools and saves a snapshot of the results, which the preview shows and publish_ui shares. Returns every error with its statement. Fix the errors in page.oui and call render_ui again until it reports no errors.",
 		promptSnippet: "Check an OpenUI page and preview it in the browser",
 		parameters: Type.Object({
 			id: ID,
 			open: Type.Optional(Type.Boolean({ description: "Open the browser if no preview is open. Default: true." })),
 		}),
-		async execute(_id, params) {
-			const outcome = await pages.render(params.id, params.open ?? true);
-			return { ...text(renderText(outcome), { id: params.id, ...outcome.result, url: outcome.url }), isError: !outcome.result.ok };
+		async execute(_id, params, _signal, _onUpdate, ctx) {
+			const outcome = await pages.render(params.id, params.open ?? true, new PiTools(ctx, OWN_TOOLS));
+			const snapshot = outcome.snapshot && { at: outcome.snapshot.at, queries: outcome.snapshot.queries };
+			return { ...text(renderText(outcome), { id: params.id, ...outcome.result, url: outcome.url, snapshot }), isError: !outcome.result.ok };
 		},
 	});
 
@@ -84,9 +90,10 @@ export function publishText(outcome: PublishOutcome): string {
 	return `Published. Give the user this link:\n${outcome.url}\n${note}`;
 }
 
-function renderText({ bundle, result, url, opened, previewError }: RenderOutcome): string {
+function renderText({ bundle, result, snapshot, url, opened, previewError }: RenderOutcome): string {
 	const lines = [result.ok ? `Page ${bundle.manifest.id} has no errors (${result.statementCount} statements).` : `Page ${bundle.manifest.id} has ${result.errors.length} errors. Fix them in ${bundle.sourcePath} and call render_ui again:`];
 	if (!result.ok) lines.push(formatProblems(result.errors));
+	if (snapshot) lines.push(`Ran ${snapshot.queries.length} queries: ${snapshot.queries.join(", ") || "none"}. The preview shows this snapshot of the results, and publish_ui shares it.`);
 	if (result.warnings.length) lines.push("Warnings:", formatProblems(result.warnings));
 	if (url) lines.push(`Preview: ${url}${opened ? " (opened in the browser)" : ""}`);
 	else lines.push(`No preview: ${previewError}`);

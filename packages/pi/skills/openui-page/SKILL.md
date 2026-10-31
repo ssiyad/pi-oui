@@ -1,6 +1,6 @@
 ---
 name: openui-page
-description: Make a web page that anyone can open from a link, like a Claude artifact. The page is written in OpenUI Lang and uses the OpenUI components (cards, tables, charts, tabs, Markdown). Use with the scaffold_ui, render_ui, publish_ui, unpublish_ui and list_ui tools. Triggers - "make a dashboard", "make a page I can share", "share this as a link", "chart this", "make a report page", "artifact".
+description: Make a web page that anyone can open from a link, like a Claude artifact. The page is written in OpenUI Lang and uses the OpenUI components (cards, tables, charts, tabs, Markdown). It can show a snapshot of data from your tools. Use with the scaffold_ui, render_ui, publish_ui, unpublish_ui and list_ui tools. Triggers - "make a dashboard", "make a page I can share", "share this as a link", "chart this", "make a report page", "artifact".
 ---
 
 # OpenUI pages
@@ -34,8 +34,8 @@ link stays the same.
   or prose in it.
 - Every statement except `root` must be reachable from `root`. `render_ui`
   reports unused and undefined names as errors, because they do not render.
-- Put all data in the page as literal values. A shared page has no tools, so
-  `Query()` and `Mutation()` do not work.
+- Put data in the page as literal values, or get it from a tool with
+  `Query()`. See [Live data](#live-data).
 - `@OpenUrl` buttons and links in Markdown open only `https:` links, and the
   reader confirms before the link opens. `render_ui` reports other `@OpenUrl`
   links as errors. `@ToAssistant` does nothing, because the reader has no
@@ -46,6 +46,33 @@ link stays the same.
   reader's IP address. Use images only from hosts that the user trusts.
 - Do not put secrets, tokens, passwords or private customer data in a page.
   Anyone with the link can read it.
+
+## Live data
+
+A page can show the result of a tool that you can call, such as `bash` or an
+MCP tool:
+
+```text
+issues = Query("bash", {command: "gh issue list --json number,title"}, [])
+table = Table([Col("Number", issues.number), Col("Title", issues.title)])
+```
+
+- `render_ui` runs each query once with your tools and saves a snapshot. The
+  preview shows the snapshot, and `publish_ui` shares it. A reader sees the
+  data from the last `render_ui`.
+- The result is the structured content of the tool. A tool without it gives
+  its text, parsed as JSON when the text is JSON.
+- The arguments can use literal values, `$state` and the results of other
+  queries. They cannot use other statements.
+- A query cannot call the pi-oui tools.
+- A query must only read data. Each `render_ui` runs it again.
+- A query result can be up to 512 KB as JSON. Ask the tool for only the data
+  that the page shows.
+- The snapshot does not refresh, and it does not change with `$state`.
+- A shared page has no tools. The snapshot removes each `Mutation()` and the
+  buttons and parts that use it.
+- After you change `page.oui`, call `render_ui` again before `publish_ui`.
+- Query results go public. Do not query secrets or private customer data.
 
 ## Publishing
 

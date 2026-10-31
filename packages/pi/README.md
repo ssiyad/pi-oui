@@ -26,13 +26,14 @@ can share". The agent:
 1. Makes a page with `scaffold_ui`.
 2. Writes `page.oui`.
 3. Calls `render_ui` until the page has no errors. The page opens in a local
-   preview, and the preview reloads after each render.
+   preview, and the preview reloads after each render. If the page has
+   `Query()` statements, `render_ui` runs them with the agent's tools.
 4. Calls `publish_ui` when you ask for a link. You confirm in Pi first.
 
 | Tool           | What it does                                                     |
 | -------------- | ---------------------------------------------------------------- |
 | `scaffold_ui`  | Makes a page with a starter `page.oui`.                          |
-| `render_ui`    | Checks the page and shows it in the local preview.               |
+| `render_ui`    | Checks the page, runs its queries and shows it in the preview.   |
 | `list_ui`      | Lists the pages on this computer.                                |
 | `publish_ui`   | Makes a public link. You confirm first.                          |
 | `unpublish_ui` | Deletes the Gist of a page. You confirm first.                   |
@@ -41,6 +42,24 @@ can share". The agent:
 | ------------- | ---------------------------------- |
 | `/ui [id]`    | Opens a page in the local preview. |
 | `/share [id]` | Publishes a page.                  |
+
+## Live data
+
+A page can get data from a tool with `Query()`, for example
+`Query("bash", {command: "gh issue list --json title"}, [])`. A shared page has
+no tools, so `render_ui` takes a snapshot:
+
+1. It runs each query once with the agent's tools. The calls go through the
+   same permission checks as calls from the agent.
+2. It replaces each `Query()` with its result as a literal value.
+3. It removes each `Mutation()` and the buttons and parts that use it.
+
+The preview shows the snapshot, and `publish_ui` and `/share` share the same
+snapshot. After a change to `page.oui`, call `render_ui` again before you
+publish. `/ui` and `/share` cannot run tools.
+
+A query must only read data, because each `render_ui` runs it again. A query
+cannot call the pi-oui tools. A query result can be up to 512 KB as JSON.
 
 ## Links
 
@@ -57,7 +76,8 @@ never holds the page.
 
 Before a page goes public, Pi shows:
 
-- Possible secrets in the page, such as tokens and passwords.
+- Possible secrets in the page and in the query results, such as tokens and
+  passwords.
 - The hosts that the page links to or loads images from. When someone opens
   the page, these hosts see the reader's IP address.
 

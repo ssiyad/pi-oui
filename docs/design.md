@@ -92,8 +92,8 @@ chart = BarChart(...)
 
 - The `library` marker records the `react-ui` version. The renderer shows a
   warning when a page needs a newer version.
-- The `context` section holds metadata and snapshot data. See
-  [Live data](#live-data).
+- The `context` section holds metadata. For a page with queries, `snapshot`
+  is the time of the snapshot. See [Live data](#live-data).
 
 ## Pi package
 
@@ -102,7 +102,7 @@ chart = BarChart(...)
 | Tool             | What it does                                                         |
 | ---------------- | -------------------------------------------------------------------- |
 | `scaffold_ui`    | Make an empty page bundle and return the path of `page.oui`.          |
-| `render_ui`      | Parse and check the page, then show it in the localhost preview.      |
+| `render_ui`      | Check the page, take a snapshot of its queries, then show the preview. |
 | `publish_ui`     | Publish the page and return the link. Asks the user first.            |
 | `unpublish_ui`   | Delete the Gist of a published page.                                  |
 | `list_ui`        | List local pages and their published links.                           |
@@ -122,8 +122,9 @@ statements without an error. `render_ui` reports the names in
 - `no-root`. OpenUI makes it a warning and renders another statement. A
   shared page must say what its root is.
 - `incomplete`: the page ends in the middle of a statement.
-- `needs-tools`: a `Query()` or `Mutation()` statement. A shared page has no
-  tools.
+- `needs-tools`: a `Query()` or `Mutation()` statement in a page that the
+  renderer opens. A shared page has no tools. In Pi, `render_ui` accepts these
+  statements and takes a snapshot. See [Live data](#live-data).
 - `not-https`: an `@OpenUrl` link that is not `https:`. The renderer does not
   open it.
 
@@ -175,6 +176,7 @@ Local bundles live in `~/.pi/ui/<id>/`:
 ```text
 manifest.json   # id, title, session, workspace, published links
 page.oui
+snapshot.json   # the page with query results, from the last render_ui
 ```
 
 ## Renderer
@@ -294,15 +296,88 @@ scope.
 `Query()` in OpenUI Lang calls a tool through a `toolProvider`. A reader of a
 shared page has no Pi and no tools. Shared pages must not call tools.
 
-Instead, `publish_ui` takes a snapshot:
+Instead, `render_ui` takes a snapshot:
 
-1. Run each `Query()` in Node with `createQueryManager()`, with Pi tools as
-   the `toolProvider`.
+1. Run each `Query()` in Node with the Pi tools of the agent.
 2. Replace each `Query()` statement with its result as a literal value.
-3. Remove all `Mutation()` statements and the buttons that run them.
+3. Remove all `Mutation()` statements, and the buttons and parts that use
+   them.
+4. Check the snapshot with the rules of a shared page, and save it in
+   `snapshot.json` with a hash of `page.oui`.
 
-The user builds a page with live data in the preview and shares a snapshot.
-Phase 1 has no `Query()` support. Phase 2 adds it.
+The preview shows the snapshot. `publish_ui` and `/share` publish the same
+snapshot, so the user shares what the preview showed. If `page.oui` changed
+after the snapshot, publishing stops and asks for a new `render_ui`. The
+secret scan and the confirm dialog read the snapshot, because query results
+go public too.
+
+### Pi tools
+
+A Pi extension can run a tool only from inside its own tool, with
+`ctx.executeTool()`. Commands and the preview server get no `executeTool()`.
+So queries run in `render_ui`, and not in the browser. `/ui` and `/share` use
+the saved snapshot.
+
+`executeTool()` runs the same validation, `tool_call` hooks and permission
+checks as a call from the model. A query can call any tool that the agent can
+call, except the pi-oui tools. The agent writes the page, so a query can do
+only what the agent can do. A query to a tool that starts another agent, such
+as `subagent`, can reach the pi-oui tools through that agent. The guard does
+not see that.
+
+Each `render_ui` runs every query again. A query must only read data. A
+tool with side effects, such as a `bash` command that writes, runs again on
+each render.
+
+### The query runner
+
+`createQueryManager()` runs in Node with Pi tools as the provider. We do not
+use it, because it is for a live page. It fetches a failed query again each
+time the page is evaluated, and it starts refresh timers. A snapshot calls
+each tool once.
+
+The runner evaluates the arguments with `evaluate()` from `lang-core` and the
+same lookups as the OpenUI `Renderer`: `$state` defaults and the results of
+other queries. It runs a query after the queries that its arguments use. It
+reports the queries in a cycle as errors, and skips the queries that use them.
+An argument that uses a statement that is not a query is an error. The
+`Renderer` gives `null` for it, and the snapshot would keep a result for the
+wrong arguments.
+
+The result of a tool is its `structuredContent`. A tool without it gives its
+text, parsed as JSON when the text is JSON. A result can be up to 512 KB as
+JSON, and the whole snapshot up to 2 MB. Both limits count bytes, as the
+renderer does. A `null` result is an error, because `lang-core` deletes a
+statement with the value `null`.
+
+### The snapshot
+
+`mergeStatements()` from `lang-core` writes the snapshot. It replaces
+statements by name and deletes the statements that `root` no longer reaches.
+It cannot remove a button from inside another statement, so pi-oui prints
+the changed statements from their AST:
+
+- A component that runs a mutation or shows its result goes. In an array of
+  components, the item goes. In another place, the parent goes too.
+- A value in an array that uses a mutation removes the whole array. Without
+  the value, the values after it would move.
+- Inside `@Each(list, "r", template)`, `r` is the item, also when a mutation
+  has the same name.
+- `@Run(query)` refreshes a query, and a snapshot has nothing to refresh. The
+  step goes. An action with no steps left goes, with its button.
+
+The snapshot keeps the result for the first value of each `$state`, and it does
+not refresh. `render_ui` warns about queries that use `$state` or a refresh
+interval.
+
+A snapshot belongs to one `page.oui`. Each `render_ui` that does not save a new
+snapshot deletes the old one: when the page has errors, when it has no
+queries, and when a query fails. So a page that goes back to an old source
+does not share old data without a new `render_ui`.
+
+The secret scan reads the snapshot. Its lines are not the lines of
+`page.oui`, so the confirm dialog names the statement, and says when it is a
+query result.
 
 ## Security and privacy
 
@@ -374,7 +449,6 @@ workflow deploys `packages/renderer/dist` to GitHub Pages.
 
 ## Open questions
 
-- Can `createQueryManager()` run in Node with Pi tools as the provider?
 - Do `message_update` events contain partial tool call arguments?
 
 ## References
