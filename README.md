@@ -40,16 +40,6 @@ components, the themes and the prompt that teaches the model to use them.
 For the tools, the commands, the settings and the security rules, see the
 [package README](packages/pi/README.md).
 
-## Status
-
-Phase 1 is done: make, check, preview, publish and delete pages. The package
-is not on npm yet, and the renderer is not on GitHub Pages yet.
-
-The next phases are in the [design document](docs/design.md#phases):
-
-1. Live data: `Query()` in the preview, and snapshots on publish.
-2. Live preview while the agent writes the page.
-
 ## Repository layout
 
 The repository is an npm workspace:
