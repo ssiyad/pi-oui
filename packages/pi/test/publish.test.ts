@@ -74,6 +74,16 @@ describe("Publisher", () => {
 		assert.ok(outcome.status === "published" && !outcome.url.includes("4711"));
 	});
 
+	it("builds the link again when the viewer URL changes", async () => {
+		const { manifest } = await pages.store.create("Moved");
+		const local = new Publisher(pages, new GistClient(exec), "http://127.0.0.1:4173/");
+		const first = await local.publish(manifest.id, ui(true));
+		assert.equal(first.status === "published" && first.url, "http://127.0.0.1:4173/#/g/ssiyad/abc123");
+		const again = await publisher.publish(manifest.id, ui(true));
+		assert.equal(again.status === "published" && again.url, `${VIEWER}#/g/ssiyad/abc123`);
+		assert.equal((await pages.store.load(manifest.id)).manifest.links.gist?.url, `${VIEWER}#/g/ssiyad/abc123`);
+	});
+
 	it("warns about secrets in the confirm dialog", async () => {
 		const bundle = await pages.store.create("Leaky");
 		await writeFile(bundle.sourcePath, 'root = Stack([h])\nh = CardHeader("token ghp_abcdefghijklmnopqrstuvwxyz0123456789")\n');

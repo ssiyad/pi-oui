@@ -80,8 +80,10 @@ export class Publisher {
 		const existing = bundle.manifest.links.gist;
 		if (existing) {
 			await this.#gist.update(existing.id, message);
-			await bundle.update((m) => ({ links: { ...m.links, gist: { ...existing, at: new Date().toISOString() } } }));
-			return existing.url;
+			// Build the link again: the viewer URL can change after the first publish.
+			const url = gistLink(this.#viewerUrl, existing.owner, existing.id);
+			await bundle.update((m) => ({ links: { ...m.links, gist: { ...existing, url, at: new Date().toISOString() } } }));
+			return url;
 		}
 		const { id, owner } = await this.#gist.create(message, bundle.manifest.title);
 		const url = gistLink(this.#viewerUrl, owner, id);

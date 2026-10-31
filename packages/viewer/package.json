@@ -9,6 +9,7 @@
     "check": "tsc --noEmit -p ."
   },
   "dependencies": {
+    "@openuidev/lang-core": "1.0.2",
     "@openuidev/react-headless": "0.18.1",
     "@openuidev/react-lang": "1.0.2",
     "@openuidev/react-ui": "0.18.1",

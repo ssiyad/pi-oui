@@ -36,10 +36,10 @@ link stays the same.
   reports unused and undefined names as errors, because they do not render.
 - Put all data in the page as literal values. A shared page has no tools, so
   `Query()` and `Mutation()` do not work.
-- An `@OpenUrl` button opens only `https:` links, and the reader confirms
-  before the link opens. `render_ui` reports other links as errors. Links in
-  Markdown open without a confirm. `@ToAssistant` does nothing, because the reader has
-  no assistant. A `Button` without an action also does nothing. The examples
+- `@OpenUrl` buttons and links in Markdown open only `https:` links, and the
+  reader confirms before the link opens. `render_ui` reports other `@OpenUrl`
+  links as errors. `@ToAssistant` does nothing, because the reader has no
+  assistant. A `Button` without an action also does nothing. The examples
   in the reference use `@ToAssistant`. Do not copy them into a page.
 - Markdown in `TextContent` shows raw HTML as text.
 - Images load from their host when someone opens the page. That host sees the

@@ -4,13 +4,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { parseMessage } from "@openuidev/lang-core";
-import { PageChecker } from "../src/checker.ts";
+import { readChecker } from "../src/spec.ts";
 import { config } from "../src/config.ts";
 import { GistClient, gistLink, type Exec } from "../src/links.ts";
 import { findHosts, findSecrets, reviewPage } from "../src/review.ts";
 import { PageStore } from "../src/store.ts";
 
-const checker = PageChecker.fromFile(config.specPath());
+const checker = readChecker(config.specPath());
 const fixture = (name: string) => readFile(new URL(`fixtures/${name}`, import.meta.url), "utf8");
 
 describe("PageChecker", () => {

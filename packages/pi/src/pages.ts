@@ -1,8 +1,9 @@
 // The page workflow that tools and commands share: make, check and preview.
-import { type CheckResult, PageChecker } from "./checker.ts";
+import type { CheckResult, PageChecker } from "./checker.ts";
 import { config } from "./config.ts";
 import type { Exec } from "./links.ts";
 import { PreviewServer } from "./preview.ts";
+import { readChecker } from "./spec.ts";
 import { type PageBundle, PageStore } from "./store.ts";
 
 export interface RenderOutcome {
@@ -30,7 +31,7 @@ export class Pages {
 
 	// Read the 95 KB spec on first use, not when Pi starts.
 	get checker(): PageChecker {
-		this.#checker ??= PageChecker.fromFile(config.specPath());
+		this.#checker ??= readChecker(config.specPath());
 		return this.#checker;
 	}
 

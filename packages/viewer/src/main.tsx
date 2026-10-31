@@ -6,7 +6,9 @@ import { ThemeProvider } from "@openuidev/react-ui";
 import { openuiLibrary } from "@openuidev/react-ui/genui-lib";
 import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { handleAction } from "./actions";
+import { guardLinks, handleAction } from "./actions";
+import { Banner, Problems } from "./banner";
+import { findProblems } from "./check";
 import { useHash, useLiveReload } from "./hooks";
 import { loadPage, parseRoute } from "./source";
 
@@ -16,6 +18,14 @@ function App() {
 	const revision = useLiveReload(route);
 	const [page, setPage] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const problems = useMemo(() => (page ? findProblems(page) : []), [page]);
+	useEffect(guardLinks, []);
+
+	// A new route must not show the old page under the banner of the new owner.
+	useEffect(() => {
+		setPage(null);
+		setError(null);
+	}, [route]);
 
 	useEffect(() => {
 		let current = true;
@@ -34,8 +44,10 @@ function App() {
 
 	return (
 		<ThemeProvider mode={colorScheme()}>
+			<Banner route={route} />
 			<main className="viewer">
-				{error ? <p>{error}</p> : <Renderer library={openuiLibrary} response={page} isStreaming={false} onAction={handleAction} />}
+				{error ? <p>{error}</p> : <Problems problems={problems} />}
+				{!error && <Renderer library={openuiLibrary} response={page} isStreaming={false} onAction={handleAction} />}
 			</main>
 		</ThemeProvider>
 	);

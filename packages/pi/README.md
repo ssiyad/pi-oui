@@ -61,12 +61,26 @@ Before a page goes public, Pi shows:
 - The hosts that the page links to or loads images from. When someone opens
   the page, these hosts see the reader's IP address.
 
+## Pages made without Pi
+
+The viewer can open any Gist that has a `page.oui` file in OpenUI Lang, also
+when Pi did not make it:
+
+```text
+https://ssiyad.github.io/pi-artifacts/#/g/<username>/<gist-id>
+```
+
+The viewer runs the same checks as `render_ui`. If the page has problems, the
+viewer lists them above the page.
+
 ## Security
 
 - Pages contain only OpenUI components. They cannot contain HTML or scripts.
 - Markdown shows raw HTML as text.
-- An `@OpenUrl` button opens only `https:` links, and the reader confirms
-  first. Links in Markdown open in a new tab without a confirm.
+- `@OpenUrl` buttons and links in Markdown open only `https:` links, and the
+  reader confirms first.
+- A banner above each shared page shows the GitHub user who made it, with a
+  link to the source.
 - The viewer does not open pages larger than 2 MB.
 - The viewer sets a content security policy. Scripts load only from the viewer,
   and data loads only from the viewer and `gist.githubusercontent.com`.

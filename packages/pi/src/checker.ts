@@ -1,5 +1,5 @@
 // Checks a page with the OpenUI Lang parser, the same parser the viewer uses.
-import { readFileSync } from "node:fs";
+// The viewer runs this file too, so it must not import Node modules.
 import { createParser, type LibraryJSONSchema, type ParseResult, type Parser, type ValidationError } from "@openuidev/lang-core";
 
 export interface Problem {
@@ -16,7 +16,7 @@ export interface CheckResult {
 	statementCount: number;
 }
 
-interface SpecFile {
+export interface SpecFile {
 	library: string;
 	root: string;
 	schema: LibraryJSONSchema;
@@ -30,14 +30,6 @@ export class PageChecker {
 	constructor(spec: SpecFile) {
 		this.library = spec.library;
 		this.#parser = createParser(spec.schema, spec.root);
-	}
-
-	static fromFile(path: string): PageChecker {
-		try {
-			return new PageChecker(JSON.parse(readFileSync(path, "utf8")));
-		} catch (error) {
-			throw new Error(`Cannot read the OpenUI library spec at ${path}. Run "npm run library". ${error}`);
-		}
 	}
 
 	/** Checks OpenUI Lang source. Unresolved and unused names are errors. */

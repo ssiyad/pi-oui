@@ -7,10 +7,16 @@ const MAX_PAGE = 2 * 1024 * 1024;
 
 export type Route = { kind: "gist"; owner: string; id: string } | { kind: "local"; id: string } | { kind: "none" };
 
+// The banner shows the owner, so accept only the characters of GitHub names.
+// Enterprise managed users have a suffix such as "_corp".
+const OWNER = /^[A-Za-z0-9][A-Za-z0-9_-]{0,49}$/;
+const GIST_ID = /^[0-9a-f]{1,40}$/i;
+const PAGE_ID = /^[a-z0-9][a-z0-9-]{0,79}$/;
+
 export function parseRoute(hash: string): Route {
 	const [, kind, ...rest] = hash.replace(/^#/, "").split("/");
-	if (kind === "g" && rest.length === 2) return { kind: "gist", owner: rest[0], id: rest[1] };
-	if (kind === "l" && rest.length === 1) return { kind: "local", id: rest[0] };
+	if (kind === "g" && rest.length === 2 && OWNER.test(rest[0]) && GIST_ID.test(rest[1])) return { kind: "gist", owner: rest[0], id: rest[1] };
+	if (kind === "l" && rest.length === 1 && PAGE_ID.test(rest[0])) return { kind: "local", id: rest[0] };
 	return { kind: "none" };
 }
 

@@ -21,7 +21,8 @@ This is the model of Claude artifacts, with these differences:
 
 OpenUI provides the components, the styles, the themes and the prompt that
 teaches the model to use them. We write no components and no CSS. Our code
-moves pages between Pi, storage and the viewer.
+moves pages between Pi, storage and the viewer. The one exception is the
+viewer banner, which is a few lines of CSS on the OpenUI theme variables.
 
 If a page needs a component that OpenUI does not have, the page does without
 it. We do not add our own components.
@@ -191,8 +192,8 @@ The viewer wraps the page in `ThemeProvider` from `react-ui`. It uses
 `prefers-color-scheme` setting of the browser. We do not change the themes.
 
 `ThemeProvider` sets its variables on `body` but does not paint the page. The
-viewer's only CSS sets the `body` background and text color from these
-variables.
+viewer's CSS sets the `body` background, text color and font from these
+variables. The banner uses the same variables, so it follows the theme.
 
 ### Routes
 
@@ -206,9 +207,26 @@ URL fragment:
 
 ### Features
 
-Phase 1 renders the page and sets the title. The other features come later:
+Phase 1:
 
-- Show the source.
+- Render the page and set the title.
+- Show a full-width banner above the page. For a Gist, it says "Page by
+  @owner" and links to the source. For a local page, it says that only the
+  user can see it.
+- Check the page with the same `PageChecker` as `render_ui`. If the page has
+  problems, an OpenUI `Callout` lists them above the page. OpenUI drops broken
+  statements without an error, and an author without Pi has no other way to
+  see why.
+
+`PageChecker` imports no Node modules, so the viewer imports it from the Pi
+package. Pi reads the library spec from a file, and the viewer gets it from
+`openuiLibrary`.
+
+Anyone can open their own Gist in the viewer. The Gist needs a `page.oui`
+file in OpenUI Lang. Pi does not need to make it.
+
+Later:
+
 - Copy a remix command: `pi "remix <link>"`.
 - Download the page as one HTML file.
 - Print.
@@ -291,10 +309,20 @@ Phase 1 has no `Query()` support. Phase 2 adds it.
 - The viewer passes no `toolProvider` to the renderer.
 - `@ToAssistant` does nothing in the viewer.
 - `@OpenUrl` accepts only `https:` links. The viewer shows the target and asks
-  before it opens the link. Links in Markdown open in a new tab without a
-  confirm.
-- The viewer stops reading a page at 2 MB, so a small link cannot inflate to
-  a page that freezes the tab.
+  before it opens the link. Links in Markdown go through the same check: a
+  click listener on the window catches each click on a link before the
+  components get it. It guards all links except the banner links, because a
+  `Modal` renders outside the page area. Links that are not `https:` show a
+  message and do not open.
+- The listener cannot stop the browser's own link menu. "Open in new tab"
+  from the context menu, and dragging a link to the tab bar, open the link
+  without a confirm. The reader starts these actions and sees the URL first.
+- The banner shows the GitHub user who made a shared page. A page cannot hide
+  the banner, so readers know that the page is not from pi-artifacts. When the
+  route changes, the viewer clears the old page before it loads the new one.
+- The route accepts only the characters of GitHub user names and hex Gist IDs.
+- The viewer stops reading a page at 2 MB, so a large page does not freeze
+  the tab.
 - Markdown renders with `react-markdown` and no `rehype-raw`. Raw HTML in a
   page does not render. `react-markdown` also removes `javascript:` links.
 - The viewer sets a Content Security Policy: no inline scripts, and
