@@ -118,6 +118,18 @@ The parser checks only statements that `root` reaches. OpenUI drops the other
 statements without an error. `render_ui` reports the names in
 `meta.unresolved` and `meta.orphaned` as errors.
 
+`render_ui` also reports these as errors:
+
+- `no-root`. OpenUI makes it a warning and renders another statement. A
+  shared page must say what its root is.
+- `incomplete`: the page ends in the middle of a statement.
+- `needs-tools`: a `Query()` or `Mutation()` statement. A shared page has no
+  tools.
+- `not-https`: an `@OpenUrl` link that is not `https:`. The viewer does not
+  open it.
+
+`@ToAssistant` is a warning, because the button does nothing in a shared page.
+
 ### Library files
 
 The Pi package does not import React. At build time, a script reads
@@ -125,23 +137,37 @@ The Pi package does not import React. At build time, a script reads
 
 - `library.spec.json`, from `openuiLibrary.toJSONSchema()`. `createParser()`
   reads it.
-- `prompt.md`, from `openuiLibrary.prompt(openuiPromptOptions)`. The skill
-  includes it.
+- `skills/openui-page/reference.md`, from
+  `openuiLibrary.prompt(openuiPromptOptions)` with our own `preamble`. The
+  skill links to it.
 
 ### Commands
 
 | Command      | What it does                                      |
 | ------------ | ------------------------------------------------- |
-| `/ui`        | Open the localhost gallery of local pages.        |
-| `/share`     | Publish the current page. Same as `publish_ui`.   |
+| `/ui [id]`   | Open a page in the localhost preview.             |
+| `/share [id]`| Publish a page. Same as `publish_ui`.             |
+
+Without an ID, both commands show a list of the pages.
 
 ### Skill
 
-The skill teaches the agent the workflow. It includes `prompt.md`, which
-OpenUI writes. `prompt.md` is about 9,000 tokens. It starts with a chat
-preamble that says the whole response must be OpenUI Lang. The skill says that
-this rule applies to `page.oui` only. The skill loads only when the agent works on a page. Other
-turns do not pay for the component reference.
+The skill teaches the agent the workflow and the rules of a shared page. It
+links to `reference.md`, which OpenUI writes. `reference.md` is about 9,000
+tokens. OpenUI's own preamble says that the whole response must be OpenUI
+Lang. Our preamble says that this rule applies to `page.oui` only. The skill
+loads only when the agent works on a page. Other turns do not pay for the
+component reference.
+
+### Preview
+
+The first `render_ui` starts an HTTP server on `127.0.0.1` with a random
+port. It serves the viewer build and `/pages/<id>/page.oui`. It refuses
+requests with another `Host` header, so other sites cannot reach it through
+DNS rebinding.
+
+`render_ui` opens the browser only when no viewer tab is open. Open tabs get a
+`render` event on `/events` and reload the page.
 
 ### Storage
 
@@ -179,10 +205,12 @@ URL fragment:
 | ----------------------------- | --------------------------------------------- |
 | `#/s/<version>.<payload>`     | The page is in the fragment.                  |
 | `#/g/<user>/<gist-id>`        | The page is in a secret Gist.                 |
+| `#/l/<id>`                    | A local page on the preview server.           |
 
 ### Features
 
-- Render the page.
+Phase 1 renders the page and sets the title. The other features come later:
+
 - Show the source.
 - Copy a remix command: `pi "remix <link>"`.
 - Download the page as one HTML file.
@@ -190,7 +218,8 @@ URL fragment:
 
 ### Size
 
-The first load is 738 KB gzipped: a 701 KB script and a 37 KB stylesheet.
+The first load is about 770 KB gzipped: a 730 KB script and a 38 KB
+stylesheet.
 KaTeX and icons load only when a page uses them. This is the cost of no design
 work. The browser caches the viewer, so a second page opens fast.
 
@@ -263,7 +292,10 @@ Phase 1 has no `Query()` support. Phase 2 adds it.
 - The viewer passes no `toolProvider` to the renderer.
 - `@ToAssistant` does nothing in the viewer.
 - `@OpenUrl` accepts only `https:` links. The viewer shows the target and asks
-  before it opens the link.
+  before it opens the link. Links in Markdown open in a new tab without a
+  confirm.
+- The viewer stops reading a page at 2 MB, so a small link cannot inflate to
+  a page that freezes the tab.
 - Markdown renders with `react-markdown` and no `rehype-raw`. Raw HTML in a
   page does not render. `react-markdown` also removes `javascript:` links.
 - The viewer sets a Content Security Policy: no inline scripts, and
@@ -294,8 +326,12 @@ packages/
   viewer/    # Vite + React app for GitHub Pages and the localhost preview
   pi/        # the Pi package: tools, commands, skill, adapters
 scripts/
-  library.ts # writes library.spec.json and prompt.md into packages/pi
+  library.ts      # writes library.spec.json and reference.md into packages/pi
+  copy-viewer.mjs # copies the viewer build into packages/pi/viewer
 ```
+
+`npm run build` runs both scripts and builds the viewer. A GitHub Actions
+workflow deploys `packages/viewer/dist` to GitHub Pages.
 
 ## Phases
 

@@ -1,0 +1,42 @@
+# Builds the viewer and deploys it to GitHub Pages.
+name: Viewer
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - packages/viewer/**
+      - package-lock.json
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    env:
+      OPENUI_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run build:viewer
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: packages/viewer/dist
+      - id: deploy
+        uses: actions/deploy-pages@v4

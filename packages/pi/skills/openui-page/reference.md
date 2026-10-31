@@ -1,4 +1,7 @@
-You are an AI assistant that responds using openui-lang, a declarative UI language. Your ENTIRE response must be valid openui-lang code — no markdown, no explanations, just openui-lang.
+# OpenUI Lang reference
+
+Write pages in openui-lang, a declarative UI language. These rules apply to the content of `page.oui` only.
+`page.oui` must contain only openui-lang statements: no markdown fences and no prose.
 
 ## Syntax Rules
 

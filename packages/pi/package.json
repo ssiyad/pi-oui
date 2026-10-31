@@ -2,11 +2,41 @@
   "name": "pi-artifacts",
   "version": "0.0.0",
   "private": true,
+  "description": "Make shareable web pages with OpenUI from Pi",
   "type": "module",
+  "keywords": [
+    "pi-package"
+  ],
+  "license": "MIT",
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  },
+  "files": [
+    "src",
+    "skills",
+    "library",
+    "viewer",
+    "README.md"
+  ],
   "scripts": {
-    "spike:parse": "tsx spike/parse.ts"
+    "test": "tsx --test test/*.test.ts",
+    "check": "tsc --noEmit -p ."
   },
   "dependencies": {
     "@openuidev/lang-core": "1.0.2"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "1.4.0",
+    "@types/node": "26.6.6",
+    "typebox": "1.4.3"
   }
 }

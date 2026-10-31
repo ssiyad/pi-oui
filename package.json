@@ -2,13 +2,20 @@
   "name": "pi-artifacts-workspace",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "library": "tsx scripts/library.ts",
     "build:viewer": "npm run build -w packages/viewer",
-    "size": "node scripts/size.mjs"
+    "copy:viewer": "node scripts/copy-viewer.mjs",
+    "build": "npm run library && npm run build:viewer && npm run copy:viewer",
+    "size": "node scripts/size.mjs",
+    "test": "npm test -w packages/pi",
+    "check": "npm run check -w packages/pi && npm run check -w packages/viewer"
   },
   "devDependencies": {
-    "tsx": "4.23.15"
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
   }
 }

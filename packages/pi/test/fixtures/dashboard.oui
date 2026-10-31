@@ -1,4 +1,3 @@
-]]>openui:content?library=openui%400.18.1
 root = Stack([title, kpis, tabs, notes])
 title = CardHeader("Support: October 2026", "Tickets handled by the platform team")
 kpis = Stack([kpiOpen, kpiClosed, kpiSla], "row", "m", "stretch")
@@ -15,6 +14,3 @@ tabSplit = TabItem("split", "By priority", [pie])
 pie = PieChart(["High", "Medium", "Low"], [@Count(@Filter(tickets, "priority", "==", "high")), @Count(@Filter(tickets, "priority", "==", "medium")), @Count(@Filter(tickets, "priority", "==", "low"))], "donut")
 tickets = [{id: 81048, subject: "Payment entry fails on submit", priority: "high", status: "open"}, {id: 81051, subject: "Print format cuts the footer", priority: "medium", status: "closed"}, {id: 81060, subject: "Slow report for stock ledger", priority: "high", status: "open"}, {id: 81062, subject: "Email digest sent twice", priority: "low", status: "closed"}, {id: 81077, subject: "Workflow skips approval", priority: "medium", status: "open"}]
 notes = Card([InlineHeader("Notes", "From the weekly review"), MarkDownRenderer("- Payment bug is **fixed** in v15.42.\n- Stock ledger report needs an index. See `stock_ledger_entry`.\n- <b>raw html</b> must not render.\n- [bad link](javascript:alert(1))"), CodeBlock("sql", "ALTER TABLE `tabStock Ledger Entry`\n  ADD INDEX posting_sort (posting_date, posting_time);")])
-]]>openui:context
-{"title":"Support: October 2026","created":"2026-10-31T10:00:00Z","data":{}}
-]]>openui:end
