@@ -12,6 +12,22 @@ export function gistLink(rendererUrl: string, owner: string, id: string): string
 	return `${rendererUrl}#/g/${encodeURIComponent(owner)}/${encodeURIComponent(id)}`;
 }
 
+// The same patterns as the route in renderer/src/source.ts.
+const OWNER = /^[A-Za-z0-9][A-Za-z0-9_-]{0,49}$/;
+const GIST_ID = /^[0-9a-f]{1,40}$/i;
+
+/** The owner and the Gist ID in a renderer link (`<renderer>#/g/<owner>/<id>`). Any renderer URL is accepted. */
+export function parseGistLink(link: string): { owner: string; id: string } | undefined {
+	const match = /#\/g\/([^/]+)\/([^/]+)$/.exec(link.trim());
+	if (!match || !OWNER.test(match[1]) || !GIST_ID.test(match[2])) return undefined;
+	return { owner: match[1], id: match[2] };
+}
+
+/** The file that the renderer reads. It needs no login and has no API rate limit. */
+export function rawGistUrl(owner: string, id: string): string {
+	return `https://gist.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(id)}/raw/${GIST_FILE}`;
+}
+
 /** Secret Gists through the GitHub CLI, so that we never handle a token. */
 export class GistClient {
 	#exec: Exec;

@@ -11,6 +11,21 @@ export interface GistLink {
 	at: string;
 }
 
+/** The published page that import_ui copied. */
+export interface RemixSource {
+	owner: string;
+	id: string;
+	url: string;
+	at: string;
+}
+
+/** Where a page was made. */
+export interface PageOrigin {
+	cwd?: string;
+	session?: string;
+	remixOf?: RemixSource;
+}
+
 export interface PageManifest {
 	id: string;
 	title: string;
@@ -19,6 +34,7 @@ export interface PageManifest {
 	/** Where the page was made. */
 	cwd?: string;
 	session?: string;
+	remixOf?: RemixSource;
 	/** The last render_ui result. */
 	check?: { at: string; ok: boolean };
 	links: { gist?: GistLink };
@@ -53,12 +69,13 @@ export class PageStore {
 		this.root = root;
 	}
 
-	async create(title: string, origin: { cwd?: string; session?: string } = {}): Promise<PageBundle> {
+	/** Makes a bundle. Without a source, page.oui gets a starter page. */
+	async create(title: string, origin: PageOrigin = {}, source = starterPage(title)): Promise<PageBundle> {
 		const now = new Date().toISOString();
 		const manifest: PageManifest = { id: newId(title), title, created: now, updated: now, ...origin, links: {} };
 		const bundle = new PageBundle(join(this.root, manifest.id), manifest);
 		await mkdir(bundle.dir, { recursive: true });
-		await writeFile(bundle.sourcePath, starterPage(title));
+		await writeFile(bundle.sourcePath, source);
 		await bundle.save();
 		return bundle;
 	}

@@ -33,6 +33,7 @@ can share". The agent:
 | Tool           | What it does                                                     |
 | -------------- | ---------------------------------------------------------------- |
 | `scaffold_ui`  | Makes a page with a starter `page.oui`.                          |
+| `import_ui`    | Copies a published page from its link into a new page.           |
 | `render_ui`    | Checks the page, runs its queries and shows it in the preview.   |
 | `list_ui`      | Lists the pages on this computer.                                |
 | `publish_ui`   | Makes a public link. You confirm first.                          |
@@ -42,6 +43,23 @@ can share". The agent:
 | ------------- | ---------------------------------- |
 | `/ui [id]`    | Opens a page in the local preview. |
 | `/share [id]` | Publishes a page.                  |
+
+## Remix a page
+
+The banner of a shared page has a "Copy remix command" button. It copies a
+command such as:
+
+```fish
+pi "remix https://ssiyad.github.io/pi-oui/#/g/<username>/<gist-id>"
+```
+
+The agent calls `import_ui` with the link. It copies the page into a new local
+page, which you can change and publish. The copy gets a new link when you
+publish it. The original page does not change.
+
+`import_ui` does not copy a page that has `Query()` or `Mutation()`
+statements, because `render_ui` runs them with your tools. A page from Pi has
+no such statements, because its snapshot replaces them.
 
 ## Live data
 

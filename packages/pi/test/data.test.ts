@@ -100,7 +100,7 @@ describe("QueryRunner arguments", () => {
 describe("PiTools", () => {
 	it("blocks every pi-oui tool", () => {
 		const names: string[] = [];
-		registerTools({ registerTool: (tool: { name: string }) => names.push(tool.name) } as never, {} as never, {} as never);
+		registerTools({ registerTool: (tool: { name: string }) => names.push(tool.name) } as never, {} as never, {} as never, {} as never);
 		assert.deepEqual([...OWN_TOOLS].sort(), names.sort());
 	});
 

@@ -130,6 +130,20 @@ statements without an error. `render_ui` reports the names in
 
 `@ToAssistant` is a warning, because the button does nothing in a shared page.
 
+`import_ui` reads the page from the raw Gist URL, as the renderer does. It
+needs no `gh` login. It makes a new bundle with the page source and the title
+from the `context` section. The manifest records the link in `remixOf`. The
+bundle has no Gist, so `publish_ui` makes a new Gist and the original page
+does not change. When a local page published the same Gist, `import_ui` names
+it, so the agent can edit that page and keep its link.
+
+`import_ui` refuses a page with `Query()` or `Mutation()` anywhere in it, also
+inside another expression, where the parser does not list it.
+`render_ui` runs queries with the tools of the agent, and another person wrote
+the page. A page from Pi has none, because its snapshot replaces them. The
+tool result and the skill tell the agent that the page text is data, not
+instructions.
+
 ### Library files
 
 The Pi package does not import React. At build time, a script reads
@@ -174,7 +188,7 @@ DNS rebinding.
 Local bundles live in `~/.pi/ui/<id>/`:
 
 ```text
-manifest.json   # id, title, session, workspace, published links
+manifest.json   # id, title, session, workspace, published links, remix source
 page.oui
 snapshot.json   # the page with query results, from the last render_ui
 ```
@@ -221,6 +235,12 @@ Phase 1:
   problems, an OpenUI `Callout` lists them above the page. OpenUI drops broken
   statements without an error, and an author without Pi has no other way to
   see why.
+- For a shared page, the banner has a "Copy remix command" button. It copies
+  `pi "remix <link>"`. The reader pastes it into a shell, so it must hold no
+  characters that a shell reads. The route accepts none in the owner and the
+  Gist ID. A server can send the renderer for any path, so the command uses
+  the path only when it has none either. Without clipboard access, the
+  renderer shows the command in a prompt.
 
 `PageChecker` imports no Node modules, so the renderer imports it from the Pi
 package. Pi reads the library spec from a file, and the renderer gets it from
@@ -231,7 +251,6 @@ file in OpenUI Lang. Pi does not need to make it.
 
 Later:
 
-- Copy a remix command: `pi "remix <link>"`.
 - Download the page as one HTML file.
 - Print.
 

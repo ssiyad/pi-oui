@@ -1,5 +1,6 @@
 // Pi extension: make OpenUI pages and share them as links.
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+import { Importer } from "./importer.ts";
 import { GistClient } from "./links.ts";
 import { Pages } from "./pages.ts";
 import { Publisher } from "./publisher.ts";
@@ -10,7 +11,7 @@ export default function piArtifacts(pi: ExtensionAPI): void {
 	const pages = new Pages(exec);
 	const publisher = new Publisher(pages, new GistClient(exec));
 
-	registerTools(pi, pages, publisher);
+	registerTools(pi, pages, publisher, new Importer(pages));
 	registerCommands(pi, pages, publisher);
 	pi.on("session_shutdown", () => pages.close());
 }
