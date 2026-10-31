@@ -16,12 +16,21 @@ This is the model of Claude artifacts, with these differences:
 - Pages live in the link itself or in a secret GitHub Gist. We run no backend.
 - The Pi package and the viewer are open source.
 
+## Principle: we do no design
+
+OpenUI provides the components, the styles, the themes and the prompt that
+teaches the model to use them. We write no components and no CSS. Our code
+moves pages between Pi, storage and the viewer.
+
+If a page needs a component that OpenUI does not have, the page does without
+it. We do not add our own components.
+
 ## Why OpenUI Lang
 
-A page in OpenUI Lang can only use components from the viewer's component
-library. It has no raw HTML and no scripts. The viewer runs only its own code,
-so a shared page cannot run code that a model wrote. An HTML page needs a
-sandbox for the same result.
+A page in OpenUI Lang can only use components from the component library. It
+has no raw HTML and no scripts. The viewer runs only OpenUI code, so a shared
+page cannot run code that a model wrote. An HTML page needs a sandbox for the
+same result.
 
 A page is also small. OpenUI reports about 1,400 output tokens for each screen.
 After compression, most pages fit in a URL.
@@ -31,13 +40,9 @@ After compression, most pages fit in a URL.
 The project has three parts:
 
 1. **The Pi package.** Tools, commands and a skill. It runs in Node inside Pi.
-2. **The viewer.** A static Vue app on GitHub Pages. It renders pages with
-   our component library.
-3. **The component library.** Vue components on
-   [frappe-ui](https://github.com/frappe/frappe-ui), with a Zod schema for
-   each. The viewer renders them. The Pi package uses their schemas and
-   prompt.
-4. **Storage adapters.** Code that writes a page to a link (in Pi) and reads it
+2. **The viewer.** A static React app on GitHub Pages. It renders pages with
+   the OpenUI component library.
+3. **Storage adapters.** Code that writes a page to a link (in Pi) and reads it
    back (in the viewer). Version 1 has two adapters: `fragment` and `gist`.
 
 ```mermaid
@@ -52,48 +57,44 @@ flowchart LR
     Link2 --> Viewer
 ```
 
-## OpenUI version
+## OpenUI packages
 
-The Vue renderer, `@openuidev/vue-lang` 0.4.2, uses `@openuidev/lang-core`
-0.4. It reads OpenUI Lang 0.5, not 1.0. The 1.0 features need the React
-renderer. These 1.0 features are not available:
+| Package                 | Version | Used by           | For                                        |
+| ----------------------- | ------- | ----------------- | ------------------------------------------ |
+| `@openuidev/lang-core`  | 1.x     | Pi package        | Parse and check pages in Node.             |
+| `@openuidev/react-lang` | 1.x     | viewer            | The `Renderer` component.                  |
+| `@openuidev/react-ui`   | 0.18    | viewer, build     | `openuiLibrary`, its prompt and its themes. |
 
-- A lone action without `Action([...])`.
-- Custom `@Name(...)` functions and actions.
-- The stored message format (`]]>openui:content`).
-- The `type-mismatch`, `unknown-function` and `no-root` error codes.
+The viewer uses `openuiLibrary`, the full library. It has layout, text,
+charts, tables, forms, images, tags and code blocks. `openuiChatLibrary` is a
+smaller set for chat replies, so we do not use it.
 
-The statement syntax of 1.0 is the same as 0.5. Pages that we write now
-should render when `vue-lang` moves to 1.0.
+We do not use `@openuidev/browser-bundle`. It contains only
+`openuiChatLibrary`.
 
-The Pi package and the viewer must use the same `lang-core` version. If they
-do not, `render_ui` can accept a page that the viewer cannot render. We pin
-one version in the workspace root.
+The Pi package and the viewer must read the same version of OpenUI Lang. If
+they do not, `render_ui` can accept a page that the viewer cannot render. One
+lockfile at the workspace root pins all OpenUI packages.
 
 ## Page format
 
-A page has two files:
+A page is one text file, `page.oui`. It uses the OpenUI
+[stored message format](https://www.openui.com/docs/openui-lang/message-protocol):
 
 ```text
-page.oui    # OpenUI Lang 0.5
-page.json   # metadata
+]]>openui:content?library=openui%400.18.1
+root = Stack([header, chart])
+header = CardHeader("Q3 revenue")
+chart = BarChart(...)
+]]>openui:context
+{"title":"Q3 revenue","created":"2026-10-31T10:00:00Z","data":{}}
+]]>openui:end
 ```
 
-```json
-{
-  "format": 1,
-  "lang": "0.5",
-  "library": "0.1.0",
-  "title": "Q3 revenue",
-  "created": "2026-10-31T10:00:00Z",
-  "data": {}
-}
-```
-
-- `format` is the version of this file layout.
-- `library` is the component library version. The viewer shows a warning when
-  a page needs a newer library.
-- `data` holds snapshot data. See [Live data](#live-data).
+- The `library` marker records the `react-ui` version. The viewer shows a
+  warning when a page needs a newer version.
+- The `context` section holds metadata and snapshot data. See
+  [Live data](#live-data).
 
 ## Pi package
 
@@ -105,24 +106,23 @@ page.json   # metadata
 | `render_ui`      | Parse and check the page, then show it in the localhost preview.      |
 | `publish_ui`     | Publish the page and return the link. Asks the user first.            |
 | `unpublish_ui`   | Delete the Gist of a published page.                                  |
-| `list_ui`        | List local pages and their published links.                          |
+| `list_ui`        | List local pages and their published links.                           |
 | `import_ui`      | Read a page from a link into a new local bundle, to remix it.         |
 
-`render_ui` parses the page with `createParser()` from
-`@openuidev/lang-core` 0.4. It returns each parser error to the agent, with
-the statement ID. The agent fixes the page and calls `render_ui` again. This
-is the same loop as a compiler error.
+`render_ui` parses the page with `createParser()` from `lang-core`. It
+returns each error to the agent, with the error code, the statement ID and the
+hint. It skips errors with `severity: "warning"`. The agent fixes the page and
+calls `render_ui` again. This is the same loop as a compiler error.
 
-The 0.4 parser reports only four error codes: `missing-required`,
-`null-required`, `unknown-component` and `excess-args`. It renders what it
-can and does not check prop types. `render_ui` adds two checks:
+### Library files
 
-1. Check the props of each element against the Zod schema of its component.
-2. Report the names in `meta.unresolved` and `meta.orphaned`.
+The Pi package does not import React. At build time, a script reads
+`openuiLibrary` from `react-ui` and writes two files into the Pi package:
 
-The Pi package does not import Vue. The library build writes
-`library.spec.json` (from `library.toJSONSchema()`) and `prompt.md` (from
-`library.prompt()`). The Pi package reads these two files.
+- `library.spec.json`, from `openuiLibrary.toJSONSchema()`. `createParser()`
+  reads it.
+- `prompt.md`, from `openuiLibrary.prompt(openuiPromptOptions)`. The skill
+  includes it.
 
 ### Commands
 
@@ -133,10 +133,9 @@ The Pi package does not import Vue. The library build writes
 
 ### Skill
 
-The skill teaches the agent the workflow and the component library. The
-component reference comes from `library.prompt()`, so it always matches the
-library. The skill loads only when the agent works on a page. Other turns do
-not pay for the component reference.
+The skill teaches the agent the workflow. It includes `prompt.md`, which
+OpenUI writes. The skill loads only when the agent works on a page. Other
+turns do not pay for the component reference.
 
 ### Storage
 
@@ -145,14 +144,21 @@ Local bundles live in `~/.pi/ui/<id>/`:
 ```text
 manifest.json   # id, title, session, workspace, published links
 page.oui
-page.json
 ```
 
 ## Viewer
 
-The viewer is a static single-page app. It uses Vue 3, Vite,
-`@openuidev/vue-lang` and our component library. The localhost preview in Pi
-serves the same build, so the preview and the shared page look the same.
+The viewer is a static single-page app built with Vite. It has one job: get
+the page text and pass it to `<Renderer library={openuiLibrary} />`.
+
+The localhost preview in Pi serves the same build. The preview and the shared
+page look the same.
+
+### Theme
+
+The viewer wraps the page in `ThemeProvider` from `react-ui`. It uses
+`defaultLightTheme` and `defaultDarkTheme` and follows the
+`prefers-color-scheme` setting of the browser. We do not change the themes.
 
 ### Routes
 
@@ -166,21 +172,32 @@ URL fragment:
 
 ### Features
 
-- Render the page, with light and dark themes.
+- Render the page.
 - Show the source.
 - Copy a remix command: `pi "remix <link>"`.
 - Download the page as one HTML file.
 - Print.
 
+### Size
+
+`react-ui` includes Radix, d3, KaTeX and a syntax highlighter. The prebuilt
+OpenUI bundle is about 900 KB gzipped, and the viewer will be close to that.
+This is the cost of no design work. The browser caches the viewer, so a
+second page opens fast.
+
+### Old pages
+
+A new `react-ui` version can change or remove components. When a version
+breaks old pages, we keep the old viewer build at `/v/<version>/`. The viewer
+reads the `library` marker and loads the matching build.
+
 ## Storage adapters
 
 ### `fragment`
 
-1. Put `page.json` and `page.oui` in one JSON object:
-   `{"meta": {...}, "source": "..."}`.
-2. Compress the object with raw deflate.
-3. Encode the result as base64url.
-4. Put it in the fragment: `#/s/1.<payload>`.
+1. Compress `page.oui` with raw deflate.
+2. Encode the result as base64url.
+3. Put it in the fragment: `#/s/1.<payload>`.
 
 The viewer reverses this with `DecompressionStream("deflate-raw")`.
 
@@ -189,16 +206,15 @@ page. A link cannot be changed or deleted, because the link is the page.
 
 ### `gist`
 
-1. Run `gh gist create` with `page.oui` and `page.json`. Gists are secret by
-   default.
+1. Run `gh gist create` with `page.oui`. Gists are secret by default.
 2. Return `#/g/<user>/<gist-id>`.
 
-The viewer reads both files from
-`https://gist.githubusercontent.com/<user>/<gist-id>/raw/<file>`. This
+The viewer reads
+`https://gist.githubusercontent.com/<user>/<gist-id>/raw/page.oui`. This
 endpoint sends `Access-Control-Allow-Origin: *` and does not have the API
-rate limit. It caches for 300 seconds, so an update can take 5 minutes to show. The GitHub
-API (`api.github.com/gists`) allows 60 requests an hour for each IP without a
-login, so the viewer does not use it.
+rate limit. It caches for 300 seconds, so an update can take 5 minutes to
+show. The GitHub API (`api.github.com/gists`) allows 60 requests an hour for
+each IP without a login, so the viewer does not use it.
 
 To update a page, `publish_ui` edits the same Gist. To delete a page,
 `unpublish_ui` deletes the Gist.
@@ -236,17 +252,19 @@ Phase 1 has no `Query()` support. Phase 2 adds it.
 - `@ToAssistant` does nothing in the viewer.
 - `@OpenUrl` accepts only `https:` links. The viewer shows the target and asks
   before it opens the link.
+- Markdown renders with `react-markdown` and no `rehype-raw`. Raw HTML in a
+  page does not render. `react-markdown` also removes `javascript:` links.
 - The viewer sets a Content Security Policy: no inline scripts, and
   `connect-src` limited to `gist.githubusercontent.com`.
-- Image and link components accept only `https:` and `data:` URLs.
-- Our `Markdown` component uses `markdown-it` with `html: false`. It does not
-  render raw HTML.
+- Image components load images from any `https:` host. That host sees the IP
+  address of the person who opens the page. `publish_ui` lists the image hosts
+  before it publishes.
 
 ### For the person who shares a page
 
 Publishing sends content to a public place. `publish_ui` always:
 
-1. Shows the title, the adapter and the size of the page.
+1. Shows the title, the adapter, the size and the image hosts of the page.
 2. Scans the page for secrets: API keys, tokens, private keys, passwords.
 3. Asks the user to confirm in the TUI.
 
@@ -255,75 +273,42 @@ package cannot stop this script. The README tells users to set
 `OPENUI_TELEMETRY_DISABLED=1` before they install. Runtime telemetry is off
 unless the user turns it on.
 
-## Component library
-
-`vue-lang` has no built-in components. We write each component in Vue with
-`defineComponent()` from `vue-lang` and a Zod schema for its props. Each
-component wraps a frappe-ui component when one exists.
-
-frappe-ui 1.1 needs Vite and Tailwind 3. The library uses only frappe-ui
-components. It does not use the data-fetching parts (`createResource` and
-others), because they expect a Frappe server.
-
-Phase 1 has these components:
-
-| Group   | Components                                              | frappe-ui source        |
-| ------- | ------------------------------------------------------- | ----------------------- |
-| Layout  | `Stack`, `Grid`, `Card`, `Tabs`, `Divider`              | `Tabs`, `Divider`       |
-| Text    | `Heading`, `Markdown`, `Alert`, `Badge`                 | `Alert`, `Badge`        |
-| Data    | `Table`, `List`, `KeyValue`, `Progress`                 | `frappe-ui/list`, `Progress` |
-| Charts  | `NumberCard`, `BarChart`, `LineChart`, `AreaChart`, `DonutChart` | `frappe-ui/charts` |
-| Input   | `Button`, `TextInput`, `Select`, `Checkbox`, `Switch`   | same names              |
-
-The charts use ECharts, which is large. The viewer loads the chart
-components only when a page uses one.
-
-Phase 3 adds components for code and reports:
-
-- For code: `Diff`, `FileTree`, `StackTrace`, `TestRun`, `CommandOutput`,
-  `CodeRef`.
-- For reports: `Timeline`, `DependencyGraph`, `PRCard`.
-
-A shared page can only use components that the public viewer has. Each
-library version stays in the viewer. Old links continue to render.
-
 ## Repository layout
 
 The repository is an npm workspace:
 
 ```text
 packages/
-  library/   # Vue components, Zod schemas, build of spec and prompt
-  viewer/    # Vue app for GitHub Pages and the localhost preview
+  viewer/    # Vite + React app for GitHub Pages and the localhost preview
   pi/        # the Pi package: tools, commands, skill, adapters
+scripts/
+  library.ts # writes library.spec.json and prompt.md into packages/pi
 ```
 
 ## Phases
 
 1. **Share a page.** `scaffold_ui`, `render_ui`, `publish_ui` with
    `fragment` and `gist`, `unpublish_ui`, `list_ui`. The viewer on GitHub
-   Pages with the phase 1 components.
+   Pages.
 2. **Live data.** `Query()` in the preview, and snapshots on publish.
    `import_ui` and remix.
-3. **Own components.** The code and report components, and library versions.
-4. **Live preview while the agent writes.** Render the page from the
+3. **Live preview while the agent writes.** Render the page from the
    `message_update` events, before the tool call ends.
 
 ## Open questions
 
 - The npm name and the viewer domain.
-- When does `vue-lang` move to `lang-core` 1.x?
-- Does `createQueryManager()` from `lang-core` 0.4 work in Node?
-- What is the gzip size of the viewer with frappe-ui and the charts?
+- Can the build script import `openuiLibrary` in Node, or does it need a
+  browser environment?
+- Can `createQueryManager()` run in Node with Pi tools as the provider?
+- What is the gzip size of the viewer?
 - What link length do Slack, WhatsApp and Raven accept?
 - Do `message_update` events contain partial tool call arguments?
 
 ## References
 
 - [OpenUI Lang specification](https://www.openui.com/docs/openui-lang/specification)
-- [OpenUI Lang 0.5 specification](https://www.openui.com/docs/openui-lang/specification/v0.5)
 - [`@openuidev/lang-core`](https://github.com/thesysdev/openui/tree/main/packages/lang-core)
-- [`@openuidev/vue-lang`](https://github.com/thesysdev/openui/tree/main/packages/vue-lang)
-- [frappe-ui](https://github.com/frappe/frappe-ui)
+- [`@openuidev/react-ui`](https://github.com/thesysdev/openui/tree/main/packages/react-ui)
 - [pi-artifacts by jakeryderv](https://github.com/jakeryderv/pi-artifacts)
 - [Pi extensions](https://pi.dev/)
