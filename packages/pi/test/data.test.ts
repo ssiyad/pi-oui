@@ -172,7 +172,7 @@ describe("SnapshotBuilder", () => {
 	});
 });
 
-describe("snapshots in render_ui and publish_ui", () => {
+describe("snapshots in render_ui", () => {
 	let root: string;
 	let pages: Pages;
 	let publisher: Publisher;
@@ -188,22 +188,20 @@ describe("snapshots in render_ui and publish_ui", () => {
 
 	before(async () => {
 		root = await mkdtemp(join(tmpdir(), "pi-ui-data-"));
-		process.env.PI_UI_OPEN = "0";
-		pages = new Pages(exec, new PageStore(join(root, "store")));
+		pages = new Pages(new PageStore(join(root, "store")));
 		publisher = new Publisher(pages, new GistClient(exec), "https://v.example/");
 	});
 	after(async () => {
-		await pages.close();
 		await rm(root, { recursive: true, force: true });
 	});
 
-	it("saves a snapshot that the preview shows and publish_ui shares", async () => {
+	it("saves a snapshot and publishes it", async () => {
 		const bundle = await pages.store.create("Data");
 		await writeFile(bundle.sourcePath, dataPage);
 		await assert.rejects(publisher.publish(bundle.manifest.id, ui()), /Call render_ui/);
 
 		const { tools, calls } = fakeTools({ rows: () => ({ rows: [{ name: "Ada" }] }) });
-		const outcome = await pages.render(bundle.manifest.id, false, tools);
+		const outcome = await pages.render(bundle.manifest.id, tools);
 		assert.deepEqual(outcome.result.errors, []);
 		assert.deepEqual(outcome.snapshot?.queries, ["data"]);
 		assert.equal(calls.length, 1);
@@ -215,16 +213,16 @@ describe("snapshots in render_ui and publish_ui", () => {
 		const answer = ui();
 		const published = await publisher.publish(bundle.manifest.id, answer);
 		assert.equal(published.status, "published");
-		assert.match(answer.asked[0], /Data: the query results from/);
+		assert.deepEqual(answer.asked, [], "a page without secrets needs no confirm");
 	});
 
 	it("shows no stale results after page.oui changes", async () => {
 		const bundle = await pages.store.create("Stale");
 		await writeFile(bundle.sourcePath, dataPage);
-		await pages.render(bundle.manifest.id, false, fakeTools({ rows: () => ({ rows: [] }) }).tools);
+		await pages.render(bundle.manifest.id, fakeTools({ rows: () => ({ rows: [] }) }).tools);
 		await writeFile(bundle.sourcePath, dataPage.replace("Name", "Who"));
 
-		const outcome = await pages.render(bundle.manifest.id, false);
+		const outcome = await pages.render(bundle.manifest.id);
 		assert.equal(outcome.snapshot, undefined);
 		assert.ok(outcome.result.warnings.some((w) => w.code === "no-snapshot"));
 		assert.match((await bundle.toMessage(checker.library)), /Query\(/);
@@ -234,9 +232,9 @@ describe("snapshots in render_ui and publish_ui", () => {
 	it("does not bring back an old snapshot when the page goes back to the old source", async () => {
 		const bundle = await pages.store.create("Revert");
 		await writeFile(bundle.sourcePath, dataPage);
-		await pages.render(bundle.manifest.id, false, fakeTools({ rows: () => ({ rows: [] }) }).tools);
+		await pages.render(bundle.manifest.id, fakeTools({ rows: () => ({ rows: [] }) }).tools);
 		await writeFile(bundle.sourcePath, "root = Stack([TextContent(\"no data\")])\n");
-		await pages.render(bundle.manifest.id, false, fakeTools({}).tools);
+		await pages.render(bundle.manifest.id, fakeTools({}).tools);
 		await writeFile(bundle.sourcePath, dataPage);
 		assert.equal(await bundle.readSnapshot(dataPage), undefined);
 		await assert.rejects(publisher.publish(bundle.manifest.id, ui()), /changed after the last snapshot/);
@@ -245,8 +243,8 @@ describe("snapshots in render_ui and publish_ui", () => {
 	it("deletes the snapshot when a query fails", async () => {
 		const bundle = await pages.store.create("Fails");
 		await writeFile(bundle.sourcePath, dataPage);
-		await pages.render(bundle.manifest.id, false, fakeTools({ rows: () => ({ rows: [] }) }).tools);
-		const outcome = await pages.render(bundle.manifest.id, false, fakeTools({}).tools);
+		await pages.render(bundle.manifest.id, fakeTools({ rows: () => ({ rows: [] }) }).tools);
+		const outcome = await pages.render(bundle.manifest.id, fakeTools({}).tools);
 		assert.deepEqual(outcome.result.errors.map((e) => e.code), ["query-failed"]);
 		assert.equal(await bundle.readSnapshot(await bundle.readSource()), undefined);
 	});
@@ -255,11 +253,12 @@ describe("snapshots in render_ui and publish_ui", () => {
 		const bundle = await pages.store.create("Leak");
 		await writeFile(bundle.sourcePath, dataPage);
 		const rows = [...Array.from({ length: 300 }, (_, i) => ({ name: `user ${i}` })), { name: "ghp_abcdefghijklmnopqrstuvwxyz0123456789" }];
-		await pages.render(bundle.manifest.id, false, fakeTools({ rows: () => ({ rows }) }).tools);
+		await pages.render(bundle.manifest.id, fakeTools({ rows: () => ({ rows }) }).tools);
 		const answer = { ...ui(), confirm: async (title: string, message: string) => (answer.asked.push(`${title}\n${message}`), false) };
 		await publisher.publish(bundle.manifest.id, answer);
 		assert.match(answer.asked[0], /may contain secrets/);
 		assert.match(answer.asked[0], /`data`, a query result: GitHub token/);
+		assert.match(answer.asked[0], /Data: the query results from/);
 	});
 });
 

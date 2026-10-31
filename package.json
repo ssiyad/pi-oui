@@ -8,8 +8,7 @@
   "scripts": {
     "library": "tsx scripts/library.ts",
     "build:renderer": "npm run build -w packages/renderer",
-    "copy:renderer": "node scripts/copy-renderer.mjs",
-    "build": "npm run library && npm run build:renderer && npm run copy:renderer",
+    "build": "npm run library && npm run build:renderer",
     "size": "node scripts/size.mjs",
     "test": "npm test -w packages/pi",
     "check": "npm run check -w packages/pi && npm run check -w packages/renderer"

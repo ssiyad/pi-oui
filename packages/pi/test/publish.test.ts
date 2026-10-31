@@ -1,16 +1,17 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { request } from "node:http";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
-import { parseMessage } from "@openuidev/lang-core";
+import { Importer } from "../src/importer.ts";
 import { GistClient, type Exec } from "../src/links.ts";
 import { Pages } from "../src/pages.ts";
 import { type ConfirmUI, Publisher } from "../src/publisher.ts";
 import { PageStore } from "../src/store.ts";
+import { registerTools } from "../src/tools.ts";
 
 const RENDERER = "https://v.example/";
+const LEAK = 'root = Stack([h])\nh = CardHeader("token ghp_abcdefghijklmnopqrstuvwxyz0123456789")\n';
 let root: string;
 let ghCalls: string[][];
 let pages: Pages;
@@ -31,33 +32,34 @@ function ui(answer: boolean): ConfirmUI & { asked: string[] } {
 
 before(async () => {
 	root = await mkdtemp(join(tmpdir(), "pi-ui-publish-"));
-	const renderer = join(root, "renderer");
-	await mkdir(join(renderer, "assets"), { recursive: true });
-	await writeFile(join(renderer, "index.html"), "<!doctype html><title>renderer</title>");
-	await writeFile(join(renderer, "assets", "app.js"), "console.log(1)");
-	await writeFile(join(root, "secret.txt"), "do not serve");
-	process.env.PI_UI_RENDERER_DIR = renderer;
 	ghCalls = [];
-	pages = new Pages(exec, new PageStore(join(root, "store")));
+	pages = new Pages(new PageStore(join(root, "store")));
 	publisher = new Publisher(pages, new GistClient(exec), RENDERER);
 });
 after(async () => {
-	await pages.close();
 	await rm(root, { recursive: true, force: true });
 });
 
 describe("Publisher", () => {
-	it("publishes nothing when the user says no", async () => {
-		const { manifest } = await pages.store.create("No");
+	it("publishes a page without secrets and does not ask", async () => {
+		const { manifest } = await pages.store.create("Clean");
 		const answer = ui(false);
-		assert.deepEqual(await publisher.publish(manifest.id, answer), { status: "cancelled" });
-		assert.match(answer.asked[0], /Anyone with the link can open this page/);
-		assert.equal((await pages.store.load(manifest.id)).manifest.links.gist, undefined);
+		const outcome = await publisher.publish(manifest.id, answer);
+		assert.equal(outcome.status, "published");
+		assert.deepEqual(answer.asked, []);
 	});
 
-	it("refuses without a UI to confirm", async () => {
+	it("publishes a page without secrets when there is no UI", async () => {
 		const { manifest } = await pages.store.create("Headless");
-		await assert.rejects(publisher.publish(manifest.id, { hasUI: false, confirm: async () => true }), /must confirm/);
+		const outcome = await publisher.publish(manifest.id, { hasUI: false, confirm: async () => false });
+		assert.equal(outcome.status, "published");
+	});
+
+	it("refuses a page with secrets when there is no UI", async () => {
+		const bundle = await pages.store.create("Headless leak");
+		await writeFile(bundle.sourcePath, LEAK);
+		await assert.rejects(publisher.publish(bundle.manifest.id, { hasUI: false, confirm: async () => true }), /must confirm[\s\S]*GitHub token/);
+		assert.equal((await pages.store.load(bundle.manifest.id)).manifest.links.gist, undefined);
 	});
 
 	it("refuses a page with errors", async () => {
@@ -84,13 +86,22 @@ describe("Publisher", () => {
 		assert.equal((await pages.store.load(manifest.id)).manifest.links.gist?.url, `${RENDERER}#/g/ssiyad/abc123`);
 	});
 
-	it("warns about secrets in the confirm dialog", async () => {
+	it("asks about secrets and publishes nothing when the user says no", async () => {
 		const bundle = await pages.store.create("Leaky");
-		await writeFile(bundle.sourcePath, 'root = Stack([h])\nh = CardHeader("token ghp_abcdefghijklmnopqrstuvwxyz0123456789")\n');
+		await writeFile(bundle.sourcePath, LEAK);
 		const answer = ui(false);
-		await publisher.publish(bundle.manifest.id, answer);
-		assert.match(answer.asked[0], /may contain secrets[\s\S]*GitHub token/);
+		assert.equal((await publisher.publish(bundle.manifest.id, answer)).status, "cancelled");
+		assert.match(answer.asked[0], /may contain secrets[\s\S]*Anyone with the link[\s\S]*GitHub token/);
 		assert.ok(!answer.asked[0].includes("abcdefghijklmnop"));
+		assert.equal((await pages.store.load(bundle.manifest.id)).manifest.links.gist, undefined);
+	});
+
+	it("publishes a page with secrets when the user says yes", async () => {
+		const bundle = await pages.store.create("Leaky yes");
+		await writeFile(bundle.sourcePath, LEAK);
+		const answer = ui(true);
+		assert.equal((await publisher.publish(bundle.manifest.id, answer)).status, "published");
+		assert.equal(answer.asked.length, 1);
 	});
 
 	it("creates a Gist, updates it with the same link, and deletes it", async () => {
@@ -99,10 +110,8 @@ describe("Publisher", () => {
 		const first = await publisher.publish(manifest.id, ui(true));
 		assert.deepEqual(first, { status: "published", url: `${RENDERER}#/g/ssiyad/abc123`, updated: false, review: { secrets: [], hosts: [] } });
 
-		const answer = ui(true);
-		const again = await publisher.publish(manifest.id, answer);
+		const again = await publisher.publish(manifest.id, ui(true));
 		assert.deepEqual(again.status === "published" && [again.url, again.updated], [`${RENDERER}#/g/ssiyad/abc123`, true]);
-		assert.match(answer.asked[0], /Updates secret Gist abc123/);
 		assert.deepEqual(ghCalls.map((c) => c.slice(0, 2).join(" ")), ["gist create", "gist edit"]);
 
 		const deleted = await publisher.unpublish(manifest.id, ui(true));
@@ -124,73 +133,43 @@ describe("checker rules for shared pages", () => {
 	});
 });
 
-describe("PreviewServer", () => {
-	it("renders, serves the renderer and the page, and opens the browser once", async () => {
-		const { manifest } = await pages.store.create("Served");
-		const outcome = await pages.render(manifest.id, true);
-		assert.equal(outcome.result.ok, true);
-		assert.match(outcome.url ?? "", new RegExp(`^http://127\\.0\\.0\\.1:\\d+/#/l/${manifest.id}$`));
-		assert.equal(outcome.opened, true);
+describe("render_ui", () => {
+	type Tool = { name: string; execute: (...args: unknown[]) => Promise<{ content: { text: string }[]; isError?: boolean }> };
+	const tools = new Map<string, Tool>();
+	const ctx = { hasUI: false, ui: { confirm: async () => false }, executeTool: async () => ({}) };
+	const run = async (id: string) => {
+		const result = await tools.get("render_ui")?.execute("call", { id }, undefined, undefined, ctx);
+		return { text: result?.content[0].text ?? "", isError: result?.isError };
+	};
 
-		const base = new URL(outcome.url ?? "");
-		const index = await get(base, "/");
-		assert.equal(index.status, 200);
-		assert.match(index.headers["content-security-policy"] ?? "", /script-src 'self'/);
-		assert.equal((await get(base, "/assets/app.js")).status, 200);
-
-		const page = await get(base, `/pages/${manifest.id}/page.oui`);
-		assert.equal(parseMessage(page.body).attributes.library, pages.checker.library);
+	before(() => {
+		registerTools({ registerTool: (tool: Tool) => tools.set(tool.name, tool) } as never, pages, publisher, new Importer(pages));
 	});
 
-	it("starts one server for parallel renders", async () => {
-		const fresh = new Pages(exec, pages.store);
-		const [a, b] = await Promise.all([fresh.preview(), fresh.preview()]);
-		assert.equal(a, b);
-		await fresh.close();
+	it("publishes a page without errors and returns the link", async () => {
+		const bundle = await pages.store.create("Tool");
+		await writeFile(bundle.sourcePath, 'root = Stack([a])\na = Button("Docs", @OpenUrl("https://docs.example/x"))\n');
+		const result = await run(bundle.manifest.id);
+		assert.equal(result.isError, false);
+		assert.match(result.text, /has no errors[\s\S]*Published\. Give the user this link:\nhttps:\/\/v\.example\/#\/g\/ssiyad\/abc123/);
+		assert.match(result.text, /docs\.example\. These hosts see the IP address/);
 	});
 
-	it("refuses other hosts, other files and other methods", async () => {
-		const base = new URL((await pages.preview())?.url ?? "");
-		assert.equal((await get(base, "/", { host: "evil.example" })).status, 403);
-		assert.equal((await get(base, "/", { "sec-fetch-site": "cross-site" })).status, 403);
-		assert.equal((await get(base, "/", { "sec-fetch-site": "same-origin" })).status, 200);
-		assert.equal((await get(base, "/../secret.txt")).status, 404);
-		assert.equal((await get(base, "/%2e%2e/secret.txt")).status, 404);
-		assert.equal((await get(base, "/pages/..%2f..%2fsecret/page.oui")).status, 404);
-		assert.equal((await get(base, "/%E0%A4%A")).status, 400);
-		assert.equal((await get(base, "/", {}, "POST")).status, 405);
-		assert.equal((await get(base, "/events?page=../x")).status, 400);
+	it("does not publish a page with errors", async () => {
+		const bundle = await pages.store.create("Tool broken");
+		await writeFile(bundle.sourcePath, "root = Stack([missing])\n");
+		ghCalls = [];
+		const result = await run(bundle.manifest.id);
+		assert.equal(result.isError, true);
+		assert.doesNotMatch(result.text, /Published/);
+		assert.deepEqual(ghCalls, []);
 	});
 
-	it("tells open tabs about a new render", async () => {
-		const { manifest } = await pages.store.create("Live");
-		const server = await pages.preview();
-		const base = new URL(server?.url ?? "");
-		const event = new Promise<string>((done) => {
-			request({ host: base.hostname, port: base.port, path: `/events?page=${manifest.id}` }, (res) => {
-				res.on("data", (chunk: Buffer) => {
-					if (chunk.includes("event: render")) {
-						done(chunk.toString());
-						res.destroy();
-					}
-				});
-			}).end();
-		});
-		while (server?.tabCount(manifest.id) === 0) await new Promise((r) => setTimeout(r, 10));
-		const outcome = await pages.render(manifest.id, true);
-		assert.equal(outcome.opened, false, "does not open a second tab");
-		assert.match(await event, new RegExp(`data: ${manifest.id}`));
+	it("reports a failed publish with the check result", async () => {
+		const bundle = await pages.store.create("Tool leak");
+		await writeFile(bundle.sourcePath, LEAK);
+		const result = await run(bundle.manifest.id);
+		assert.equal(result.isError, true);
+		assert.match(result.text, /has no errors[\s\S]*Not published: The page may contain secrets/);
 	});
 });
-
-function get(base: URL, path: string, headers: Record<string, string> = {}, method = "GET") {
-	return new Promise<{ status: number; headers: Record<string, string | undefined>; body: string }>((done, reject) => {
-		const req = request({ host: base.hostname, port: base.port, path, method, headers }, (res) => {
-			let body = "";
-			res.on("data", (chunk) => (body += chunk));
-			res.on("end", () => done({ status: res.statusCode ?? 0, headers: res.headers as Record<string, string | undefined>, body }));
-		});
-		req.on("error", reject);
-		req.end();
-	});
-}

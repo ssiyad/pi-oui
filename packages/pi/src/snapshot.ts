@@ -1,7 +1,7 @@
 // A shared page has no tools. render_ui runs the queries of a page and saves a
 // snapshot: the page with each Query() replaced by its result, and without
-// Mutation() and the parts that run or show a mutation. The preview shows the
-// snapshot, and publish_ui shares it.
+// Mutation() and the parts that run or show a mutation. render_ui publishes the
+// snapshot.
 import { type ASTNode, mergeStatements, type ParseResult, type ToolProvider } from "@openuidev/lang-core";
 import { AstPrinter, parseStatements } from "./ast.ts";
 import type { PageChecker, Problem } from "./checker.ts";
@@ -11,7 +11,7 @@ import { MAX_PAGE_BYTES, type PageBundle, type Snapshot } from "./store.ts";
 export interface SnapshotOutcome {
 	errors: Problem[];
 	warnings: Problem[];
-	/** The snapshot that the preview shows and publish_ui shares. */
+	/** The snapshot that render_ui publishes. */
 	snapshot?: Snapshot;
 }
 
@@ -31,7 +31,7 @@ export class Snapshots {
 
 	/**
 	 * Runs the queries with the tools and saves a new snapshot. Without tools,
-	 * for example in a command, returns the saved snapshot if the page did not change.
+	 * returns the saved snapshot if the page did not change.
 	 */
 	async take(bundle: PageBundle, source: string, tools?: ToolProvider): Promise<SnapshotOutcome> {
 		const parsed = this.#checker.parse(source);
@@ -39,10 +39,10 @@ export class Snapshots {
 		if (!tools) {
 			const snapshot = await bundle.readSnapshot(source);
 			if (snapshot) return { errors: [], warnings, snapshot };
-			return { errors: [], warnings: [...warnings, { code: "no-snapshot", message: "The page changed after the last render_ui, so the preview shows no query results. Ask the agent to call render_ui." }] };
+			return { errors: [], warnings: [...warnings, { code: "no-snapshot", message: "The page changed after the last render_ui, so it has no query results. Call render_ui to run the queries." }] };
 		}
 
-		// Never leave an old snapshot that publish_ui could share for this source.
+		// Never leave an old snapshot that render_ui could publish for this source.
 		const errors = await this.#build(bundle, source, parsed, tools).catch(async (error) => {
 			await bundle.clearSnapshot();
 			throw error;

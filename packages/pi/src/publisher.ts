@@ -1,5 +1,6 @@
-// Publishing puts a page in a secret Gist, a public place, so the user always
-// confirms. The link holds only the Gist ID, never the page.
+// Publishing puts a page in a secret Gist, a public place. render_ui publishes
+// each page without errors. The user confirms only a page that may contain
+// secrets. The link holds only the Gist ID, never the page.
 import { config } from "./config.ts";
 import { formatProblems } from "./checker.ts";
 import { GistClient, gistLink } from "./links.ts";
@@ -16,7 +17,7 @@ export interface ConfirmUI {
 
 export type PublishOutcome =
 	| { status: "published"; url: string; updated: boolean; review: PageReview }
-	| { status: "cancelled" };
+	| { status: "cancelled"; review: PageReview };
 
 interface Plan {
 	message: string;
@@ -36,21 +37,26 @@ export class Publisher {
 		this.#rendererUrl = rendererUrl;
 	}
 
-	/** Creates the Gist of a page, or updates it. The link stays the same after an update. */
+	/**
+	 * Creates the Gist of a page, or updates it. The link stays the same after an
+	 * update. The user confirms first only when the page may contain secrets.
+	 */
 	async publish(id: string, ui: ConfirmUI): Promise<PublishOutcome> {
-		requireUI(ui);
 		const bundle = await this.#pages.store.load(id);
 		const plan = await this.#plan(bundle);
-		if (!(await ui.confirm(confirmTitle(bundle, plan), confirmMessage(bundle, plan)))) return { status: "cancelled" };
+		if (plan.review.secrets.length) {
+			if (!ui.hasUI) throw new Error(`The page may contain secrets, so the user must confirm it in the Pi interface, and there is none. Remove the secrets from the page, then call render_ui again.\n${secretList(plan)}`);
+			if (!(await ui.confirm(`Publish "${bundle.manifest.title}"? It may contain secrets.`, confirmMessage(bundle, plan)))) return { status: "cancelled", review: plan.review };
+		}
 
 		const updated = Boolean(bundle.manifest.links.gist);
 		const url = await this.#toGist(bundle, plan.message);
 		return { status: "published", url, updated, review: plan.review };
 	}
 
-	/** Deletes the Gist of a page. */
+	/** Deletes the Gist of a page. The user always confirms. */
 	async unpublish(id: string, ui: ConfirmUI): Promise<{ status: "deleted" | "cancelled"; url?: string }> {
-		requireUI(ui);
+		if (!ui.hasUI) throw new Error("The user must confirm this in the Pi interface. Ask the user to run Pi in interactive mode.");
 		const bundle = await this.#pages.store.load(id);
 		const gist = bundle.manifest.links.gist;
 		if (!gist) throw new Error("This page is not published.");
@@ -75,7 +81,7 @@ export class Publisher {
 		const result = checker.check(source, { allowData: true });
 		if (!result.ok) throw new Error(`Fix these errors first, then call render_ui:\n${formatProblems(result.errors)}`);
 
-		// A page with queries goes out as the snapshot that the user saw in the preview.
+		// A page with queries goes out as the snapshot from the last render_ui.
 		const needsSnapshot = hasData(checker.parse(source));
 		const snapshot = needsSnapshot ? await bundle.readSnapshot(source) : undefined;
 		if (needsSnapshot && !snapshot) throw new Error("The page has Query() or Mutation() statements, and page.oui changed after the last snapshot. Call render_ui to run the queries again, then publish.");
@@ -106,23 +112,15 @@ export class Publisher {
 	}
 }
 
-function requireUI(ui: ConfirmUI): void {
-	if (!ui.hasUI) throw new Error("The user must confirm this in the Pi interface. Ask the user to run /share in interactive mode.");
-}
-
-function confirmTitle(bundle: PageBundle, plan: Plan): string {
-	const warning = plan.review.secrets.length ? " It may contain secrets." : "";
-	return `Publish "${bundle.manifest.title}"?${warning}`;
-}
-
 function confirmMessage(bundle: PageBundle, plan: Plan): string {
 	const lines = ["Anyone with the link can open this page.", "", gistText(bundle), `Size: ${kb(plan.bytes)}`];
-	if (plan.snapshot) lines.push(`Data: the query results from ${plan.snapshot.at.slice(0, 16).replace("T", " ")} UTC, as in the preview.`);
-	lines.push(`Hosts in links and images: ${plan.review.hosts.join(", ") || "none"}`);
-	if (plan.review.secrets.length) {
-		lines.push("", "Possible secrets:", ...plan.review.secrets.map((s) => `  ${secretPlace(s, plan.snapshot)}: ${s.kind} ${s.preview}`));
-	}
+	if (plan.snapshot) lines.push(`Data: the query results from ${plan.snapshot.at.slice(0, 16).replace("T", " ")} UTC.`);
+	lines.push(`Hosts in links and images: ${plan.review.hosts.join(", ") || "none"}`, "", secretList(plan));
 	return lines.join("\n");
+}
+
+function secretList(plan: Plan): string {
+	return ["Possible secrets:", ...plan.review.secrets.map((s) => `  ${secretPlace(s, plan.snapshot)}: ${s.kind} ${s.preview}`)].join("\n");
 }
 
 // Lines of a snapshot are not lines of page.oui, so name the statement.

@@ -1,5 +1,5 @@
 // Remix: copy a published page from its link into a new local bundle. The
-// copy has no Gist, so publish_ui makes a new link and the original stays as it is.
+// copy has no Gist, so render_ui publishes it with a new link and the original stays as it is.
 import { parseMessage, walkAST } from "@openuidev/lang-core";
 import { parseStatements } from "./ast.ts";
 import { config } from "./config.ts";

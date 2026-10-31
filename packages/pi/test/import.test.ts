@@ -29,11 +29,10 @@ const message = (content: string, context: object = { title: "Q3 revenue" }) => 
 
 before(async () => {
 	root = await mkdtemp(join(tmpdir(), "pi-ui-import-"));
-	pages = new Pages(async () => ({ stdout: "", stderr: "", code: 0 }), new PageStore(join(root, "store")));
+	pages = new Pages(new PageStore(join(root, "store")));
 	requested = [];
 });
 after(async () => {
-	await pages.close();
 	await rm(root, { recursive: true, force: true });
 });
 

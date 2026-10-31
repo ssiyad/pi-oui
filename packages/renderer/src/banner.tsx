@@ -89,7 +89,6 @@ const SAFE_PATH = /^[A-Za-z0-9._~/-]*$/;
 const PROJECT_URL = "https://github.com/ssiyad/pi-oui";
 
 function origin(route: Route) {
-	if (route.kind === "local") return "Local preview. Only you can see this page.";
 	if (route.kind === "none" || route.kind === "home") return null;
 	return (
 		<>

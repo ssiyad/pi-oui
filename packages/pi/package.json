@@ -1,6 +1,6 @@
 {
   "name": "pi-oui",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Make shareable web pages with OpenUI from Pi",
   "type": "module",
   "keywords": [
@@ -26,7 +26,6 @@
     "src",
     "skills",
     "library",
-    "renderer",
     "README.md"
   ],
   "scripts": {

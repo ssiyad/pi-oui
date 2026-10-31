@@ -1,9 +1,7 @@
-// The page workflow that tools and commands share: make, check and preview.
+// The page workflow that the tools share: make and check.
 import type { ToolProvider } from "@openuidev/lang-core";
 import type { CheckResult, PageChecker } from "./checker.ts";
 import { config } from "./config.ts";
-import type { Exec } from "./links.ts";
-import { PreviewServer } from "./preview.ts";
 import { hasData, Snapshots } from "./snapshot.ts";
 import { readChecker } from "./spec.ts";
 import { type PageBundle, PageStore, type Snapshot } from "./store.ts";
@@ -11,26 +9,16 @@ import { type PageBundle, PageStore, type Snapshot } from "./store.ts";
 export interface RenderOutcome {
 	bundle: PageBundle;
 	result: CheckResult;
-	/** The query results that the preview shows and publish_ui shares. */
+	/** The query results that render_ui publishes. */
 	snapshot?: Snapshot;
-	/** Preview URL, when the preview runs. */
-	url?: string;
-	/** Why there is no preview. */
-	previewError?: string;
-	opened: boolean;
 }
 
 export class Pages {
 	readonly store: PageStore;
-	#exec: Exec;
 	#checker: PageChecker | undefined;
 	#snapshots: Snapshots | undefined;
-	#preview: Promise<PreviewServer | undefined> | undefined;
-	/** When the browser last opened each page. A new tab needs time to connect. */
-	#openedAt = new Map<string, number>();
 
-	constructor(exec: Exec, store = new PageStore(config.storeDir())) {
-		this.#exec = exec;
+	constructor(store = new PageStore(config.storeDir())) {
 		this.store = store;
 	}
 
@@ -45,31 +33,12 @@ export class Pages {
 		return this.#snapshots;
 	}
 
-	/**
-	 * Checks a page, saves the result and refreshes its open previews. Opens the
-	 * browser when asked and the page has no open preview. With tools, runs the
-	 * queries of the page and saves a snapshot of the results.
-	 */
-	async render(id: string, open: boolean, tools?: ToolProvider): Promise<RenderOutcome> {
+	/** Checks a page and saves the result. With tools, runs the queries of the page and saves a snapshot of the results. */
+	async render(id: string, tools?: ToolProvider): Promise<RenderOutcome> {
 		const bundle = await this.store.load(id);
 		const { result, snapshot } = await this.#check(bundle, tools);
 		await bundle.update({ check: { at: new Date().toISOString(), ok: result.ok } });
-
-		// A preview failure must not hide the errors that the agent has to fix.
-		let preview: PreviewServer | undefined;
-		try {
-			preview = await this.preview();
-		} catch (error) {
-			return { bundle, result, snapshot, opened: false, previewError: (error as Error).message };
-		}
-		if (!preview) return { bundle, result, snapshot, opened: false, previewError: "The renderer build is missing. Run `npm run build` in the pi-oui repo." };
-
-		preview.notify(id);
-		const url = preview.pageUrl(id);
-		const justOpened = Date.now() - (this.#openedAt.get(id) ?? 0) < 15_000;
-		const opened = open && config.autoOpen() && result.ok && !justOpened && preview.tabCount(id) === 0 && (await this.openBrowser(url));
-		if (opened) this.#openedAt.set(id, Date.now());
-		return { bundle, result, snapshot, url, opened };
+		return { bundle, result, snapshot };
 	}
 
 	// Errors in the page come first: queries run only on a page without errors.
@@ -86,42 +55,4 @@ export class Pages {
 		const errors = [...result.errors, ...outcome.errors];
 		return { result: { ...result, ok: errors.length === 0, errors, warnings: [...result.warnings, ...outcome.warnings] }, snapshot: outcome.snapshot };
 	}
-
-	/** The preview server, started once on first use. Undefined when the renderer build is missing. */
-	preview(): Promise<PreviewServer | undefined> {
-		this.#preview ??= this.#startPreview().catch((error) => {
-			this.#preview = undefined;
-			throw error;
-		});
-		return this.#preview;
-	}
-
-	async openBrowser(url: string): Promise<boolean> {
-		const [command, ...args] = browserCommand(url);
-		const result = await this.#exec(command, args, { timeout: 10_000 }).catch(() => undefined);
-		return result?.code === 0;
-	}
-
-	async close(): Promise<void> {
-		const pending = this.#preview;
-		this.#preview = undefined;
-		const server = await pending?.catch(() => undefined);
-		await server?.close();
-	}
-
-	async #startPreview(): Promise<PreviewServer | undefined> {
-		const dir = config.rendererDir();
-		if (!dir) return undefined;
-		const port = Number(process.env.PI_UI_PORT ?? 0);
-		if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error(`PI_UI_PORT is not a port: ${process.env.PI_UI_PORT}`);
-		const server = new PreviewServer(dir, async (id) => (await this.store.load(id)).toMessage(this.checker.library));
-		await server.start(port);
-		return server;
-	}
-}
-
-function browserCommand(url: string): string[] {
-	if (process.platform === "darwin") return ["open", url];
-	if (process.platform === "win32") return ["cmd", "/c", "start", "", url];
-	return ["xdg-open", url];
 }

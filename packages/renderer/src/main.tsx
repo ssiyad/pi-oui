@@ -9,13 +9,12 @@ import { createRoot } from "react-dom/client";
 import { guardLinks, handleAction, handleOwnAction } from "./actions";
 import { Banner, Problems } from "./banner";
 import { findProblems } from "./check";
-import { useHash, useLiveReload } from "./hooks";
+import { useHash } from "./hooks";
 import { LANDING, loadPage, parseRoute } from "./source";
 
 function App() {
 	const hash = useHash();
 	const route = useMemo(() => parseRoute(hash), [hash]);
-	const revision = useLiveReload(route);
 	const [page, setPage] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const problems = useMemo(() => (page ? findProblems(page) : []), [page]);
@@ -43,7 +42,7 @@ function App() {
 		return () => {
 			current = false;
 		};
-	}, [route, revision]);
+	}, [route]);
 
 	return (
 		<ThemeProvider mode={colorScheme()}>

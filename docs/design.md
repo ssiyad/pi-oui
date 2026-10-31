@@ -5,10 +5,13 @@ Status: draft. Name: `pi-oui`. The renderer is at `https://ssiyad.github.io/pi-o
 ## Goal
 
 A Pi user asks the agent for a page. The agent writes the page in
-[OpenUI Lang](https://www.openui.com/docs/openui-lang). The user previews it
-on localhost. Then the user publishes it and gets a link. Anyone with the link
-can open the page in a browser. The reader of the page does not need Pi, an
-account, or a login.
+[OpenUI Lang](https://www.openui.com/docs/openui-lang). Pi checks the page,
+publishes it and gives the user a link. Anyone with the link can open the page
+in a browser. The reader of the page does not need Pi, an account, or a login.
+
+There is no local preview. The user sees the result of the agent in the Pi TUI
+and then shares the link. A published page can change later and keep its link,
+so a preview before publishing is not necessary.
 
 This is the model of Claude artifacts, with these differences:
 
@@ -40,7 +43,7 @@ A page is also small. OpenUI reports about 1,400 output tokens for each screen.
 
 The project has three parts:
 
-1. **The Pi package.** Tools, commands and a skill. It runs in Node inside Pi.
+1. **The Pi package.** Tools and a skill. It runs in Node inside Pi.
 2. **The renderer.** A static React app on GitHub Pages. It renders pages with
    the OpenUI component library.
 3. **Storage.** A secret GitHub Gist holds each published page. Pi writes it,
@@ -50,8 +53,7 @@ The project has three parts:
 flowchart LR
     Agent["Pi agent"] -->|writes| Page["page.oui"]
     Page --> Check["render_ui: parse + check"]
-    Check --> Preview["localhost preview"]
-    Check --> Publish["publish_ui"]
+    Check -->|no errors| Publish["render_ui: publish"]
     Publish --> Gist["secret Gist"] --> Link["renderer/#/g/user/id"]
     Link --> Renderer["static renderer"]
 ```
@@ -99,14 +101,15 @@ chart = BarChart(...)
 
 ### Tools
 
-| Tool             | What it does                                                         |
-| ---------------- | -------------------------------------------------------------------- |
-| `scaffold_ui`    | Make an empty page bundle and return the path of `page.oui`.          |
-| `render_ui`      | Check the page, take a snapshot of its queries, then show the preview. |
-| `publish_ui`     | Publish the page and return the link. Asks the user first.            |
-| `unpublish_ui`   | Delete the Gist of a published page.                                  |
-| `list_ui`        | List local pages and their published links.                           |
-| `import_ui`      | Read a page from a link into a new local bundle, to remix it.         |
+| Tool           | What it does                                                                     |
+| -------------- | -------------------------------------------------------------------------------- |
+| `scaffold_ui`  | Make an empty page bundle and return the path of `page.oui`.                     |
+| `render_ui`    | Check the page, take a snapshot of its queries, publish it and return the link.  |
+| `unpublish_ui` | Delete the Gist of a published page. Asks the user first.                        |
+| `list_ui`      | List local pages and their published links.                                      |
+| `import_ui`    | Read a page from a link into a new local bundle, to remix it.                    |
+
+The package has no commands.
 
 `render_ui` parses the page with `createParser()` from `lang-core`. It
 returns each error to the agent, with the error code, the statement ID and the
@@ -130,12 +133,24 @@ statements without an error. `render_ui` reports the names in
 
 `@ToAssistant` is a warning, because the button does nothing in a shared page.
 
+When the page has no errors, `render_ui` publishes it. The first time, it
+makes a secret Gist. Later calls update the same Gist, so the link stays the
+same. `render_ui` returns the link. A page with errors is not published, and
+its Gist does not change. If publishing fails, for example because `gh` is
+not installed or the page is too large, `render_ui` still returns the check
+result and adds "Not published: <reason>". See
+[For the person who shares a page](#for-the-person-who-shares-a-page).
+
+`unpublish_ui` deletes the Gist. After that, the next `render_ui` of the page
+publishes it again with a new link.
+
 `import_ui` reads the page from the raw Gist URL, as the renderer does. It
 needs no `gh` login. It makes a new bundle with the page source and the title
 from the `context` section. The manifest records the link in `remixOf`. The
-bundle has no Gist, so `publish_ui` makes a new Gist and the original page
-does not change. When a local page published the same Gist, `import_ui` names
-it, so the agent can edit that page and keep its link.
+bundle has no Gist, so `render_ui` publishes it in a new Gist with a new
+link, and the original page does not change. When a local page published the
+same Gist, `import_ui` names it, so the agent can edit that page and keep its
+link.
 
 `import_ui` refuses a page with `Query()` or `Mutation()` anywhere in it, also
 inside another expression, where the parser does not list it.
@@ -155,15 +170,6 @@ The Pi package does not import React. At build time, a script reads
   `openuiLibrary.prompt(openuiPromptOptions)` with our own `preamble`. The
   skill links to it.
 
-### Commands
-
-| Command      | What it does                                      |
-| ------------ | ------------------------------------------------- |
-| `/ui [id]`   | Open a page in the localhost preview.             |
-| `/share [id]`| Publish a page. Same as `publish_ui`.             |
-
-Without an ID, both commands show a list of the pages.
-
 ### Skill
 
 The skill teaches the agent the workflow and the rules of a shared page. It
@@ -172,16 +178,6 @@ tokens. OpenUI's own preamble says that the whole response must be OpenUI
 Lang. Our preamble says that this rule applies to `page.oui` only. The skill
 loads only when the agent works on a page. Other turns do not pay for the
 component reference.
-
-### Preview
-
-The first `render_ui` starts an HTTP server on `127.0.0.1` with a random
-port. It serves the renderer build and `/pages/<id>/page.oui`. It refuses
-requests with another `Host` header, so other sites cannot reach it through
-DNS rebinding.
-
-`render_ui` opens the browser only when no preview tab is open. Open tabs get a
-`render` event on `/events` and reload the page.
 
 ### Storage
 
@@ -196,10 +192,8 @@ snapshot.json   # the page with query results, from the last render_ui
 ## Renderer
 
 The renderer is a static single-page app built with Vite. It has one job: get
-the page text and pass it to `<Renderer library={openuiLibrary} />`.
-
-The localhost preview in Pi serves the same build. The preview and the shared
-page look the same.
+the page text and pass it to `<Renderer library={openuiLibrary} />`. The Pi
+package does not ship a copy of the renderer.
 
 ### Theme
 
@@ -213,29 +207,27 @@ variables. The banner uses the same variables, so it follows the theme.
 
 ### Routes
 
-GitHub Pages cannot route paths in a single-page app. All routes are in the
+GitHub Pages cannot route paths in a single-page app. The route is in the
 URL fragment:
 
 | Route                         | Source                                        |
 | ----------------------------- | --------------------------------------------- |
 | `#/g/<user>/<gist-id>`        | The page is in a secret Gist.                 |
-| `#/l/<id>`                    | A local page on the preview server.           |
 
 ### Features
 
 Phase 1:
 
 - Render the page and set the title.
-- Show a full-width banner above the page. For a shared page, it shows the
-  owner's GitHub ID with a link to the profile, says "User-generated
-  content", and says "Rendered using pi-oui" with a link to
-  <https://github.com/ssiyad/pi-oui>. It does not say where the page is
-  stored. For a local page, it says that only the user can see it.
+- Show a full-width banner above the page. It shows the owner's GitHub ID
+  with a link to the profile, says "User-generated content", and says
+  "Rendered using pi-oui" with a link to <https://github.com/ssiyad/pi-oui>.
+  It does not say where the page is stored.
 - Check the page with the same `PageChecker` as `render_ui`. If the page has
   problems, an OpenUI `Callout` lists them above the page. OpenUI drops broken
   statements without an error, and an author without Pi has no other way to
   see why.
-- For a shared page, the banner has a "Copy remix command" button. It copies
+- The banner has a "Copy remix command" button. It copies
   `pi "remix <link>"`. The reader pastes it into a shell, so it must hold no
   characters that a shell reads. The route accepts none in the owner and the
   Gist ID. A server can send the renderer for any path, so the command uses
@@ -300,7 +292,7 @@ rate limit. It caches for 300 seconds, so an update can take 5 minutes to
 show. The GitHub API (`api.github.com/gists`) allows 60 requests an hour for
 each IP without a login, so the renderer does not use it.
 
-To update a page, `publish_ui` edits the same Gist. To delete a page,
+To update a page, `render_ui` edits the same Gist. To delete a page,
 `unpublish_ui` deletes the Gist.
 
 We tested this route with a real secret Gist on 2026-10-31. Create, edit and
@@ -313,7 +305,7 @@ with no console errors. The raw URL is slow to change:
 - A query string does not get a new copy. The response says
   `x-cache: MISS` and still has the old page, so the cache is behind the CDN.
 
-`publish_ui` and `unpublish_ui` tell the user about this delay.
+`render_ui` and `unpublish_ui` tell the user about this delay.
 
 A secret Gist is not private. Anyone with the link can read it.
 
@@ -334,18 +326,16 @@ Instead, `render_ui` takes a snapshot:
 4. Check the snapshot with the rules of a shared page, and save it in
    `snapshot.json` with a hash of `page.oui`.
 
-The preview shows the snapshot. `publish_ui` and `/share` publish the same
-snapshot, so the user shares what the preview showed. If `page.oui` changed
-after the snapshot, publishing stops and asks for a new `render_ui`. The
-secret scan and the confirm dialog read the snapshot, because query results
+`render_ui` then publishes this snapshot, so the link shows the data of the
+last check. If `page.oui` changed after the snapshot, publishing stops. The
+secret review and the confirm dialog read the snapshot, because query results
 go public too.
 
 ### Pi tools
 
 A Pi extension can run a tool only from inside its own tool, with
-`ctx.executeTool()`. Commands and the preview server get no `executeTool()`.
-So queries run in `render_ui`, and not in the browser. `/ui` and `/share` use
-the saved snapshot.
+`ctx.executeTool()`. So queries run in `render_ui`, in Node, and not in the
+browser.
 
 `executeTool()` runs the same validation, `tool_call` hooks and permission
 checks as a call from the model. A query can call any tool that the agent can
@@ -404,7 +394,7 @@ snapshot deletes the old one: when the page has errors, when it has no
 queries, and when a query fails. So a page that goes back to an old source
 does not share old data without a new `render_ui`.
 
-The secret scan reads the snapshot. Its lines are not the lines of
+The secret review reads the snapshot. Its lines are not the lines of
 `page.oui`, so the confirm dialog names the statement, and says when it is a
 query result.
 
@@ -432,19 +422,27 @@ query result.
 - Markdown renders with `react-markdown` and no `rehype-raw`. Raw HTML in a
   page does not render. `react-markdown` also removes `javascript:` links.
 - The renderer sets a Content Security Policy: no inline scripts, and
-  `connect-src` limited to `gist.githubusercontent.com`.
+  `connect-src` limited to `https://gist.githubusercontent.com`.
 - Image components load images from any `https:` host. That host sees the IP
-  address of the person who opens the page. `publish_ui` lists the image hosts
-  before it publishes.
+  address of the person who opens the page. The result text of `render_ui`
+  lists the external hosts of the links and images of the page.
 
 ### For the person who shares a page
 
-Publishing sends content to a public place. `publish_ui` always:
+Publishing sends content to a public place. Before `render_ui` publishes, it
+reviews the page and the query results for possible secrets: API keys,
+tokens, private keys, passwords. Messages show each possible secret masked.
 
-1. Shows the title, the Gist it creates or updates, the size and the image
-   hosts of the page.
-2. Scans the page for secrets: API keys, tokens, private keys, passwords.
-3. Asks the user to confirm in the TUI.
+- When the review finds no possible secrets, `render_ui` publishes the page
+  with no dialog. This is also true without a UI.
+- When the review finds possible secrets, Pi shows a confirm dialog in the
+  TUI. It shows the title, the Gist that it creates or updates, the size, the
+  time of the data, the external hosts and the list of possible secrets. If
+  the user says no, nothing is published.
+- Without a UI, for example in non-interactive mode, a page with possible
+  secrets is not published. `render_ui` returns an error that lists them.
+
+`unpublish_ui` always asks the user to confirm.
 
 `lang-core` sends pseudonymous telemetry from its `postinstall` script. npm 12
 blocks this script by default. Older npm versions run it, and our package
@@ -457,21 +455,21 @@ The repository is an npm workspace:
 
 ```text
 packages/
-  renderer/    # Vite + React app for GitHub Pages and the localhost preview
-  pi/        # the Pi package: tools, commands, skill, Gist client
+  renderer/    # Vite + React app for GitHub Pages
+  pi/          # the Pi package: tools, skill, Gist client
 scripts/
-  library.ts      # writes library.spec.json and reference.md into packages/pi
-  copy-renderer.mjs # copies the renderer build into packages/pi/renderer
+  library.ts   # writes library.spec.json and reference.md into packages/pi
+  size.mjs     # measures the renderer build, for npm run size
 ```
 
-`npm run build` runs both scripts and builds the renderer. A GitHub Actions
+`npm run build` runs `scripts/library.ts` and builds the renderer. A GitHub Actions
 workflow deploys `packages/renderer/dist` to GitHub Pages.
 
 ## Phases
 
-1. **Share a page.** `scaffold_ui`, `render_ui`, `publish_ui` to a secret
+1. **Share a page.** `scaffold_ui`, `render_ui` with publishing to a secret
    Gist, `unpublish_ui`, `list_ui`. The renderer on GitHub Pages.
-2. **Live data.** `Query()` in the preview, and snapshots on publish.
+2. **Live data.** `Query()` in `render_ui`, and snapshots on publish.
    `import_ui` and remix.
 
 ## References

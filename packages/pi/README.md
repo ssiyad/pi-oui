@@ -33,38 +33,33 @@ pi remove npm:pi-oui
 
 ## Use
 
-Ask the agent for a page, for example "make a dashboard of these numbers that I
-can share". The agent:
+Ask the agent for a page, for example "make a dashboard of these numbers". The
+agent:
 
 1. Makes a page with `scaffold_ui`.
 2. Writes `page.oui`.
-3. Calls `render_ui` until the page has no errors. The page opens in a local
-   preview, and the preview reloads after each render. If the page has
-   `Query()` statements, `render_ui` runs them with the agent's tools.
-4. Calls `publish_ui` when you ask for a link. You confirm in Pi first.
+3. Calls `render_ui` until the page has no errors. If the page has `Query()`
+   statements, `render_ui` runs them with the agent's tools.
+4. When the page has no errors, `render_ui` publishes it and the agent gives
+   you the link. You confirm first only when the page may contain secrets.
+
+To change the page, ask the agent. It edits the same page and calls
+`render_ui` again. The link stays the same.
 
 Other requests that work:
 
-- "Show my open GitHub issues as a table that I can share." The page gets the
-  issues with `Query()`. See [Live data](#live-data).
+- "Show my open GitHub issues as a table." The page gets the issues with
+  `Query()`. See [Live data](#live-data).
 - "Turn this CSV into a chart."
-- "Change the title of my last page and publish it again."
+- "Change the title of my last page."
 
-| Tool           | What it does                                                     |
-| -------------- | ---------------------------------------------------------------- |
-| `scaffold_ui`  | Makes a page with a starter `page.oui`.                          |
-| `import_ui`    | Copies a published page from its link into a new page.           |
-| `render_ui`    | Checks the page, runs its queries and shows it in the preview.   |
-| `list_ui`      | Lists the pages on this computer.                                |
-| `publish_ui`   | Makes a public link. You confirm first.                          |
-| `unpublish_ui` | Deletes the Gist of a page. You confirm first.                   |
-
-| Command       | What it does                       |
-| ------------- | ---------------------------------- |
-| `/ui [id]`    | Opens a page in the local preview. |
-| `/share [id]` | Publishes a page.                  |
-
-Without an ID, `/ui` and `/share` ask which page to use.
+| Tool           | What it does                                                   |
+| -------------- | -------------------------------------------------------------- |
+| `scaffold_ui`  | Makes a page with a starter `page.oui`.                        |
+| `import_ui`    | Copies a published page from its link into a new page.         |
+| `render_ui`    | Checks the page, runs its queries and publishes it as a link.  |
+| `list_ui`      | Lists the pages on this computer, with their links.            |
+| `unpublish_ui` | Deletes the Gist of a page. You confirm first.                 |
 
 ## Remix a page
 
@@ -76,8 +71,8 @@ pi "remix https://ssiyad.github.io/pi-oui/#/g/<username>/<gist-id>"
 ```
 
 The agent calls `import_ui` with the link. It copies the page into a new local
-page, which you can change and publish. The copy gets a new link when you
-publish it. The original page does not change.
+page, which you can change. `render_ui` publishes the copy with a new link. The
+original page does not change.
 
 `import_ui` does not copy a page that has `Query()` or `Mutation()`
 statements, because `render_ui` runs them with your tools. A page from Pi has
@@ -94,9 +89,8 @@ no tools, so `render_ui` takes a snapshot:
 2. It replaces each `Query()` with its result as a literal value.
 3. It removes each `Mutation()` and the buttons and parts that use it.
 
-The preview shows the snapshot, and `publish_ui` and `/share` share the same
-snapshot. After a change to `page.oui`, call `render_ui` again before you
-publish. `/ui` and `/share` cannot run tools.
+`render_ui` publishes the snapshot. The link shows the data from the last
+`render_ui`, and the data does not refresh.
 
 A query must only read data, because each `render_ui` runs it again. A query
 cannot call the pi-oui tools. A query result can be up to 512 KB as JSON.
@@ -114,12 +108,13 @@ never holds the page.
   to show.
 - A secret Gist is not private: anyone with the link can read it.
 
-Before a page goes public, Pi shows:
+Before a page goes public, Pi looks for possible secrets in the page and in the
+query results, such as tokens and passwords. If it finds any, Pi shows them and
+you confirm. If you say no, nothing goes public. Without the Pi interface, for
+example in print mode, Pi does not publish a page with possible secrets.
 
-- Possible secrets in the page and in the query results, such as tokens and
-  passwords.
-- The hosts that the page links to or loads images from. When someone opens
-  the page, these hosts see the reader's IP address.
+`render_ui` also lists the hosts that the page links to or loads images from.
+When someone opens the page, these hosts see the reader's IP address.
 
 ## Pages made without Pi
 
@@ -143,20 +138,14 @@ renderer lists them above the page.
   that the content is user-generated.
 - The renderer does not open pages larger than 2 MB.
 - The renderer sets a content security policy. Scripts load only from the
-  renderer, and data loads only from the renderer and
-  `gist.githubusercontent.com`.
-- The local preview listens on `127.0.0.1` only and refuses other `Host`
-  headers.
+  renderer, and data loads only from `gist.githubusercontent.com`.
 
 ## Settings
 
-| Variable             | Default                            | Use                                        |
-| -------------------- | ---------------------------------- | ------------------------------------------ |
-| `PI_UI_DIR`          | `~/.pi/ui`                         | Where pages are kept.                      |
-| `PI_UI_RENDERER_URL` | `https://ssiyad.github.io/pi-oui/` | The renderer that links point to.          |
-| `PI_UI_OPEN`         | `1`                                | `0` stops `render_ui` opening the browser. |
-| `PI_UI_PORT`         | Random                             | Port of the local preview.                 |
-| `PI_UI_RENDERER_DIR` | The package's `renderer/`          | Another renderer build for the preview.    |
+| Variable             | Default                            | Use                               |
+| -------------------- | ---------------------------------- | --------------------------------- |
+| `PI_UI_DIR`          | `~/.pi/ui`                         | Where pages are kept.             |
+| `PI_UI_RENDERER_URL` | `https://ssiyad.github.io/pi-oui/` | The renderer that links point to. |
 
 ## Develop
 

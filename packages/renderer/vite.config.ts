@@ -3,14 +3,14 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 
 // GitHub Pages cannot send headers, so the build puts the policy in a meta
-// tag. Pages load from a Gist or from the Pi preview server.
+// tag. Pages load only from a Gist.
 const CSP = [
 	"default-src 'self'",
 	"script-src 'self'",
 	"style-src 'self' 'unsafe-inline'",
 	"img-src 'self' https: data:",
 	"font-src 'self' data:",
-	"connect-src 'self' https://gist.githubusercontent.com",
+	"connect-src https://gist.githubusercontent.com",
 	"object-src 'none'",
 	"base-uri 'none'",
 	"form-action 'none'",
@@ -37,7 +37,7 @@ const highlighterAliases = [
 	},
 ];
 
-// Relative base, so the same build works on GitHub Pages and on localhost.
+// Relative base, so the same build works on GitHub Pages and in `vite dev`.
 export default defineConfig({
 	base: "./",
 	plugins: [react(), contentSecurityPolicy()],

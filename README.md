@@ -4,9 +4,9 @@ Make web pages in [Pi](https://pi.dev/) and share them with a link, like
 Claude artifacts.
 
 The agent writes the page in
-[OpenUI Lang](https://www.openui.com/docs/openui-lang). You check it in a local
-preview. Then you publish it and get a link. Anyone with the link can open the
-page in a browser. The reader needs no Pi, no account and no login.
+[OpenUI Lang](https://www.openui.com/docs/openui-lang), publishes it and gives
+you a link. Anyone with the link can open the page in a browser. The reader
+needs no Pi, no account and no login.
 
 A page can use only the components of the
 [OpenUI](https://github.com/thesysdev/openui) library. It cannot contain HTML or
@@ -38,24 +38,22 @@ pi remove npm:pi-oui
 
 ## Use
 
-1. Start Pi and ask for a page, for example "make a dashboard of these numbers
-   that I can share".
-2. The agent writes the page. The page opens in a local preview in your
-   browser.
-3. Ask for changes. The preview reloads after each change.
-4. Ask for a link, or run `/share`. Pi shows the possible secrets and the
-   external hosts in the page, and you confirm.
-5. Send the link. Anyone can open the page in a browser.
+1. Start Pi and ask for a page, for example "make a dashboard of these
+   numbers".
+2. The agent writes the page, publishes it and gives you the link. If the page
+   may contain secrets, Pi shows them and you confirm first.
+3. Send the link. Anyone can open the page in a browser.
+4. To change the page, ask the agent. The link stays the same. GitHub caches
+   the page, so a change can take about 5 minutes to show.
 
-To open a page again, run `/ui`. To change a page that someone shared, give
-the agent its link:
+To change a page that someone else shared, give the agent its link:
 
 ```fish
 pi "remix https://ssiyad.github.io/pi-oui/#/g/<username>/<gist-id>"
 ```
 
-For the tools, the commands, live data, the settings and the security rules,
-see the [package README](packages/pi/README.md).
+For the tools, live data, the settings and the security rules, see the
+[package README](packages/pi/README.md).
 
 ## How it works
 
@@ -63,18 +61,16 @@ see the [package README](packages/pi/README.md).
 flowchart LR
     Agent["Pi agent"] -->|writes| Page["page.oui"]
     Page --> Check["render_ui: parse + check"]
-    Check --> Preview["localhost preview"]
-    Check --> Publish["publish_ui"]
-    Publish --> Gist["secret Gist"] --> Link["renderer/#/g/user/id"]
+    Check -->|no errors| Gist["secret Gist"] --> Link["renderer/#/g/user/id"]
     Link --> Renderer["static renderer"]
 ```
 
 The project has three parts:
 
-1. **The Pi package.** It adds tools, commands and a skill to Pi. The agent
-   uses them to write, check, preview and publish pages.
+1. **The Pi package.** It adds tools and a skill to Pi. The agent
+   uses them to write, check and publish pages.
 2. **The renderer.** A static React app on GitHub Pages. It renders pages with
-   the OpenUI components. The local preview uses the same app.
+   the OpenUI components.
 3. **Storage.** A secret GitHub Gist on your `gh` account holds each published
    page. The link holds only your GitHub username and the Gist ID. It never
    holds the page.
@@ -88,11 +84,10 @@ The repository is an npm workspace:
 
 ```text
 packages/
-  pi/        # the Pi package: tools, commands, skill, Gist client
-  renderer/    # Vite + React app for GitHub Pages and the local preview
+  pi/        # the Pi package: tools, skill, Gist client
+  renderer/    # Vite + React app for GitHub Pages
 scripts/
   library.ts      # writes library.spec.json and reference.md into packages/pi
-  copy-renderer.mjs # copies the renderer build into packages/pi/renderer
   size.mjs        # prints the size of each file in the renderer build
 docs/
   design.md          # the design
