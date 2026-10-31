@@ -88,11 +88,11 @@ To try the renderer alone, run `npm run dev -w packages/renderer`.
 ## Deploy the renderer
 
 The workflow in `.github/workflows/pages.yml` builds the renderer and deploys it
-to GitHub Pages. It runs on each push to `master` that changes the renderer, and
+to GitHub Pages. It runs on each push to `main` that changes the renderer, and
 you can also start it by hand.
 
 1. In the repository settings, set the Pages source to GitHub Actions.
-2. Push to `master`, or run the "Renderer" workflow.
+2. Push to `main`, or run the "Renderer" workflow.
 
 Links point to `https://ssiyad.github.io/pi-oui/` by default. To use another
 renderer, set `PI_UI_RENDERER_URL`.
