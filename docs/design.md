@@ -450,8 +450,7 @@ tokens, private keys, passwords. Messages show each possible secret masked.
 
 `lang-core` sends pseudonymous telemetry from its `postinstall` script. npm 12
 blocks this script by default. Older npm versions run it, and our package
-cannot stop it. The README tells users to set `OPENUI_TELEMETRY_DISABLED=1`
-before they install. Runtime telemetry is off unless the user turns it on.
+cannot stop it. Runtime telemetry is off unless the user turns it on.
 
 ## Repository layout
 

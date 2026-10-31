@@ -16,14 +16,6 @@ Add `-l` to install it only for the current project.
 To publish to a Gist, install the [GitHub CLI](https://cli.github.com) and run
 `gh auth login`.
 
-`@openuidev/lang-core` sends telemetry from its `postinstall` script. npm 12
-blocks this script. With older npm, turn the telemetry off before you install:
-
-```fish
-set -x OPENUI_TELEMETRY_DISABLED 1
-pi install npm:pi-oui
-```
-
 To update or remove the package:
 
 ```fish

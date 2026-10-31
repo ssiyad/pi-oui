@@ -25,10 +25,6 @@ Add `-l` to install it only for the current project.
 To publish pages, install the [GitHub CLI](https://cli.github.com) and run
 `gh auth login`. Each published page goes into a secret Gist on this account.
 
-`@openuidev/lang-core` sends telemetry from its `postinstall` script. npm 12
-blocks this script. With older npm, run `set -x OPENUI_TELEMETRY_DISABLED 1`
-before you install.
-
 To update or remove the package:
 
 ```fish
@@ -98,17 +94,10 @@ docs/
 
 You need Node 24 and npm.
 
-`@openuidev/lang-core` sends telemetry from its `postinstall` script. npm 12
-blocks this script. With older npm, turn the telemetry off before you install:
+Install, build, test and type check from the repository root:
 
 ```fish
-set -x OPENUI_TELEMETRY_DISABLED 1
 npm install
-```
-
-Build, test and type check from the repository root:
-
-```fish
 npm run build   # library spec, skill reference, renderer
 npm test
 npm run check
