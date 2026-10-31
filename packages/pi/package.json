@@ -1,13 +1,19 @@
 {
   "name": "pi-oui",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "description": "Make shareable web pages with OpenUI from Pi",
   "type": "module",
   "keywords": [
     "pi-package"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ssiyad/pi-oui.git",
+    "directory": "packages/pi"
+  },
+  "homepage": "https://github.com/ssiyad/pi-oui#readme",
+  "bugs": "https://github.com/ssiyad/pi-oui/issues",
   "pi": {
     "extensions": [
       "./src/index.ts"
