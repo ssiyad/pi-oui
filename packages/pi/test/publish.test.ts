@@ -131,6 +131,35 @@ describe("checker rules for shared pages", () => {
 		const http = pages.checker.check('root = Stack([b])\nb = Button("Go", @OpenUrl("http://example.com"))\n');
 		assert.deepEqual(http.errors.map((e) => e.code), ["not-https"]);
 	});
+
+	it("does not check actions in strings and comments", () => {
+		const text = pages.checker.check(
+			[
+				"root = Stack([a, b, c]) # @ToAssistant(\"x\")",
+				'a = TextContent("`@ToAssistant` and @OpenUrl(\\"http://a.example\\") do nothing")',
+				"b = TextContent('Say \"@ToAssistant\" or @OpenUrl(\\'ftp://b.example\\')')",
+				'c = Button("Go", @OpenUrl("https://c.example")) // @OpenUrl("http://c.example")',
+			].join("\n"),
+		);
+		assert.deepEqual([...text.errors, ...text.warnings], []);
+	});
+
+	it("checks only the code in Markdown fences, as the parser reads it", () => {
+		const page = 'root = Stack([b])\nb = Button("Go", @OpenUrl("http://example.com"))\n';
+		for (const source of [
+			`Here's the page:\n\`\`\`oui\n${page}\`\`\`\nIt's not @ToAssistant("x") or @OpenUrl("http://after.example").\n`,
+			`\`\`\`oui'\n${page}\`\`\`\n`,
+		]) {
+			const result = pages.checker.check(source);
+			assert.deepEqual(result.errors.map((e) => e.message), ['@OpenUrl("http://example.com") does nothing: the renderer opens only https:// links.'], source);
+			assert.deepEqual(result.warnings, [], source);
+		}
+	});
+
+	it("checks @OpenUrl with a single-quoted link", () => {
+		const result = pages.checker.check("root = Stack([b])\nb = Button('Go', @OpenUrl('http://example.com'))\n");
+		assert.deepEqual(result.errors.map((e) => e.message), ['@OpenUrl("http://example.com") does nothing: the renderer opens only https:// links.']);
+	});
 });
 
 describe("render_ui", () => {
