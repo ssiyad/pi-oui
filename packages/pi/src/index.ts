@@ -36,15 +36,13 @@ function registerCommands(pi: ExtensionAPI, pages: Pages, publisher: Publisher):
 	});
 
 	pi.registerCommand("share", {
-		description: "Publish an OpenUI page as a public link: /share <id> [fragment|gist]",
+		description: "Publish an OpenUI page as a public link: /share [id]",
 		getArgumentCompletions: completions,
 		handler: async (args, ctx) => {
-			const [given, storage = "auto"] = args.trim().split(/\s+/).filter(Boolean);
-			if (!["auto", "fragment", "gist"].includes(storage)) return ctx.ui.notify(`Unknown storage "${storage}". Use fragment or gist.`, "error");
-			const id = given || (await pickPage(pages, ctx, "Share which page?"));
+			const id = args.trim() || (await pickPage(pages, ctx, "Share which page?"));
 			if (!id) return;
 			try {
-				const outcome = await publisher.publish(id, storage as "auto" | "fragment" | "gist", confirmUI(ctx));
+				const outcome = await publisher.publish(id, confirmUI(ctx));
 				ctx.ui.notify(publishText(outcome), outcome.status === "published" ? "info" : "warning");
 			} catch (error) {
 				ctx.ui.notify((error as Error).message, "error");

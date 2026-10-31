@@ -4,11 +4,6 @@ import { mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { buildMessage, parseMessage } from "@openuidev/lang-core";
 
-export interface FragmentLink {
-	url: string;
-	at: string;
-}
-
 export interface GistLink {
 	id: string;
 	owner: string;
@@ -26,7 +21,7 @@ export interface PageManifest {
 	session?: string;
 	/** The last render_ui result. */
 	check?: { at: string; ok: boolean };
-	links: { fragment?: FragmentLink; gist?: GistLink };
+	links: { gist?: GistLink };
 }
 
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,79}$/;

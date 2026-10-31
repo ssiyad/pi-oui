@@ -2,7 +2,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 
 // GitHub Pages cannot send headers, so the build puts the policy in a meta
-// tag. Pages load from the fragment, a Gist, or the Pi preview server.
+// tag. Pages load from a Gist or from the Pi preview server.
 const CSP = [
 	"default-src 'self'",
 	"script-src 'self'",

@@ -37,24 +37,23 @@ can share". The agent:
 | `publish_ui`   | Makes a public link. You confirm first.                          |
 | `unpublish_ui` | Deletes the Gist of a page. You confirm first.                   |
 
-| Command                         | What it does                       |
-| ------------------------------- | ---------------------------------- |
-| `/ui [id]`                      | Opens a page in the local preview. |
-| `/share [id] [fragment\|gist]`  | Publishes a page.                  |
+| Command       | What it does                       |
+| ------------- | ---------------------------------- |
+| `/ui [id]`    | Opens a page in the local preview. |
+| `/share [id]` | Publishes a page.                  |
 
 ## Links
 
-A link opens the viewer, a static site on GitHub Pages. The page is in one of
-two places:
+A link opens the viewer, a static site on GitHub Pages. The page is in a
+secret GitHub Gist on your `gh` account. The link holds only your GitHub
+username and the Gist ID, which GitHub makes from 128 random bits. The link
+never holds the page.
 
-- **In the link.** The page is compressed into the URL fragment. Browsers do
-  not send the fragment to a server. You cannot change or delete the link.
-- **In a secret GitHub Gist.** You can update and delete the page, and the
-  link stays the same. GitHub caches the page, so an update or a delete can
-  take about 5 minutes to show. A secret Gist is not private: anyone with the
-  link can read it.
-
-`publish_ui` puts the page in the link when the link is 8 KB or less.
+- You can update the page. The link stays the same.
+- You can delete the page. The link then stops working.
+- GitHub caches the page, so an update or a delete can take about 5 minutes
+  to show.
+- A secret Gist is not private: anyone with the link can read it.
 
 Before a page goes public, Pi shows:
 

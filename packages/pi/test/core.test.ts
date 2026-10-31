@@ -3,11 +3,10 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
-import { inflateRawSync } from "node:zlib";
 import { parseMessage } from "@openuidev/lang-core";
 import { PageChecker } from "../src/checker.ts";
 import { config } from "../src/config.ts";
-import { fragmentLink, GistClient, gistLink, type Exec } from "../src/links.ts";
+import { GistClient, gistLink, type Exec } from "../src/links.ts";
 import { findHosts, findSecrets, reviewPage } from "../src/review.ts";
 import { PageStore } from "../src/store.ts";
 
@@ -70,12 +69,12 @@ describe("PageStore", () => {
 		const other = await store.load(bundle.manifest.id);
 		await Promise.all([
 			bundle.update({ check: { at: "a", ok: true } }),
-			other.update((m) => ({ links: { ...m.links, fragment: { url: "u", at: "b" } } })),
+			other.update({ title: "Renamed" }),
 			bundle.update((m) => ({ links: { ...m.links, gist: { id: "g", owner: "o", url: "v", at: "c" } } })),
 		]);
 		const saved = (await store.load(bundle.manifest.id)).manifest;
 		assert.deepEqual(saved.check, { at: "a", ok: true });
-		assert.equal(saved.links.fragment?.url, "u");
+		assert.equal(saved.title, "Renamed");
 		assert.equal(saved.links.gist?.id, "g");
 	});
 
@@ -95,12 +94,6 @@ describe("PageStore", () => {
 });
 
 describe("links", () => {
-	it("puts the compressed message in the fragment", () => {
-		const link = fragmentLink("https://v.example/", "root = Stack([])");
-		const payload = link.split("#/s/1.")[1];
-		assert.equal(inflateRawSync(Buffer.from(payload, "base64url")).toString(), "root = Stack([])");
-	});
-
 	it("makes a Gist link", () => {
 		assert.equal(gistLink("https://v.example/", "ssiyad", "abc123"), "https://v.example/#/g/ssiyad/abc123");
 	});

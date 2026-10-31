@@ -5,10 +5,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { parseMessage } from "@openuidev/lang-core";
-import { FRAGMENT_LIMIT } from "../src/config.ts";
 import { GistClient, type Exec } from "../src/links.ts";
 import { Pages } from "../src/pages.ts";
-import { chooseStorage, type ConfirmUI, Publisher } from "../src/publisher.ts";
+import { type ConfirmUI, Publisher } from "../src/publisher.ts";
 import { PageStore } from "../src/store.ts";
 
 const VIEWER = "https://v.example/";
@@ -51,35 +50,35 @@ describe("Publisher", () => {
 	it("publishes nothing when the user says no", async () => {
 		const { manifest } = await pages.store.create("No");
 		const answer = ui(false);
-		assert.deepEqual(await publisher.publish(manifest.id, "auto", answer), { status: "cancelled" });
+		assert.deepEqual(await publisher.publish(manifest.id, answer), { status: "cancelled" });
 		assert.match(answer.asked[0], /Anyone with the link can open this page/);
-		assert.equal((await pages.store.load(manifest.id)).manifest.links.fragment, undefined);
+		assert.equal((await pages.store.load(manifest.id)).manifest.links.gist, undefined);
 	});
 
 	it("refuses without a UI to confirm", async () => {
 		const { manifest } = await pages.store.create("Headless");
-		await assert.rejects(publisher.publish(manifest.id, "auto", { hasUI: false, confirm: async () => true }), /must confirm/);
+		await assert.rejects(publisher.publish(manifest.id, { hasUI: false, confirm: async () => true }), /must confirm/);
 	});
 
 	it("refuses a page with errors", async () => {
 		const bundle = await pages.store.create("Broken");
 		await writeFile(bundle.sourcePath, "root = Stack([missing])\n");
-		await assert.rejects(publisher.publish(bundle.manifest.id, "auto", ui(true)), /unresolved/);
+		await assert.rejects(publisher.publish(bundle.manifest.id, ui(true)), /unresolved/);
 	});
 
-	it("puts a small page in the link", async () => {
-		const { manifest } = await pages.store.create("Small");
-		const outcome = await publisher.publish(manifest.id, "auto", ui(true));
-		assert.equal(outcome.status === "published" && outcome.storage, "fragment");
-		assert.ok(outcome.status === "published" && outcome.url.startsWith(`${VIEWER}#/s/1.`));
-		assert.ok((await pages.store.load(manifest.id)).manifest.links.fragment);
+	it("never puts the page in the link", async () => {
+		const bundle = await pages.store.create("Small");
+		await writeFile(bundle.sourcePath, 'root = Stack([h])\nh = CardHeader("Unique marker 4711")\n');
+		const outcome = await publisher.publish(bundle.manifest.id, ui(true));
+		assert.equal(outcome.status === "published" && outcome.url, `${VIEWER}#/g/ssiyad/abc123`);
+		assert.ok(outcome.status === "published" && !outcome.url.includes("4711"));
 	});
 
 	it("warns about secrets in the confirm dialog", async () => {
 		const bundle = await pages.store.create("Leaky");
 		await writeFile(bundle.sourcePath, 'root = Stack([h])\nh = CardHeader("token ghp_abcdefghijklmnopqrstuvwxyz0123456789")\n');
 		const answer = ui(false);
-		await publisher.publish(bundle.manifest.id, "auto", answer);
+		await publisher.publish(bundle.manifest.id, answer);
 		assert.match(answer.asked[0], /may contain secrets[\s\S]*GitHub token/);
 		assert.ok(!answer.asked[0].includes("abcdefghijklmnop"));
 	});
@@ -87,24 +86,19 @@ describe("Publisher", () => {
 	it("creates a Gist, updates it with the same link, and deletes it", async () => {
 		const { manifest } = await pages.store.create("Gisted");
 		ghCalls = [];
-		const first = await publisher.publish(manifest.id, "gist", ui(true));
-		assert.deepEqual(first, { status: "published", storage: "gist", url: `${VIEWER}#/g/ssiyad/abc123`, review: { secrets: [], hosts: [] } });
+		const first = await publisher.publish(manifest.id, ui(true));
+		assert.deepEqual(first, { status: "published", url: `${VIEWER}#/g/ssiyad/abc123`, updated: false, review: { secrets: [], hosts: [] } });
 
-		const again = await publisher.publish(manifest.id, "auto", ui(true));
-		assert.equal(again.status === "published" && again.url, `${VIEWER}#/g/ssiyad/abc123`);
+		const answer = ui(true);
+		const again = await publisher.publish(manifest.id, answer);
+		assert.deepEqual(again.status === "published" && [again.url, again.updated], [`${VIEWER}#/g/ssiyad/abc123`, true]);
+		assert.match(answer.asked[0], /Updates secret Gist abc123/);
 		assert.deepEqual(ghCalls.map((c) => c.slice(0, 2).join(" ")), ["gist create", "gist edit"]);
 
 		const deleted = await publisher.unpublish(manifest.id, ui(true));
 		assert.equal(deleted.status, "deleted");
 		assert.equal((await pages.store.load(manifest.id)).manifest.links.gist, undefined);
-		await assert.rejects(publisher.unpublish(manifest.id, ui(true)), /no Gist/);
-	});
-
-	it("chooses the storage by link length", () => {
-		assert.equal(chooseStorage("auto", FRAGMENT_LIMIT, false), "fragment");
-		assert.equal(chooseStorage("auto", FRAGMENT_LIMIT + 1, false), "gist");
-		assert.equal(chooseStorage("auto", 100, true), "gist");
-		assert.equal(chooseStorage("fragment", 100_000, true), "fragment");
+		await assert.rejects(publisher.unpublish(manifest.id, ui(true)), /not published/);
 	});
 });
 

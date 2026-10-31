@@ -52,13 +52,10 @@ export function registerTools(pi: ExtensionAPI, pages: Pages, publisher: Publish
 		name: "publish_ui",
 		label: "Publish UI page",
 		description:
-			"Make a public link to a page. The user confirms first. storage: 'fragment' puts the page in the link, 'gist' puts it in a secret GitHub Gist that can be updated and deleted, 'auto' (default) uses the link when it is 8 KB or less. Publish only when the user asks.",
-		parameters: Type.Object({
-			id: ID,
-			storage: Type.Optional(Type.Union([Type.Literal("auto"), Type.Literal("fragment"), Type.Literal("gist")])),
-		}),
+			"Make a public link to a page. The page goes into a secret GitHub Gist, and the link holds only the Gist ID. If the page is already published, this updates the Gist and the link stays the same. The user confirms first. Publish only when the user asks.",
+		parameters: Type.Object({ id: ID }),
 		async execute(_id, params, _signal, _onUpdate, ctx) {
-			const outcome = await publisher.publish(params.id, params.storage ?? "auto", confirmUI(ctx));
+			const outcome = await publisher.publish(params.id, confirmUI(ctx));
 			return text(publishText(outcome), outcome);
 		},
 	});
@@ -66,7 +63,7 @@ export function registerTools(pi: ExtensionAPI, pages: Pages, publisher: Publish
 	pi.registerTool({
 		name: "unpublish_ui",
 		label: "Unpublish UI page",
-		description: "Delete the Gist of a page, so its Gist link stops working after about 5 minutes. The user confirms first. Fragment links cannot be deleted.",
+		description: "Delete the Gist of a page, so its link stops working after about 5 minutes. The user confirms first.",
 		parameters: Type.Object({ id: ID }),
 		async execute(_id, params, _signal, _onUpdate, ctx) {
 			const outcome = await publisher.unpublish(params.id, confirmUI(ctx));
@@ -77,14 +74,14 @@ export function registerTools(pi: ExtensionAPI, pages: Pages, publisher: Publish
 
 export function listLine(page: PageManifest): string {
 	const state = page.check ? (page.check.ok ? "ok" : "has errors") : "not rendered";
-	const links = [page.links.gist?.url, page.links.fragment && "fragment link"].filter(Boolean).join(", ");
-	return `- ${page.id}: ${page.title} (${state}, updated ${page.updated.slice(0, 16).replace("T", " ")})${links ? ` — ${links}` : ""}`;
+	const link = page.links.gist?.url;
+	return `- ${page.id}: ${page.title} (${state}, updated ${page.updated.slice(0, 16).replace("T", " ")})${link ? ` — ${link}` : ""}`;
 }
 
 export function publishText(outcome: PublishOutcome): string {
 	if (outcome.status === "cancelled") return "The user cancelled. Nothing was published. Do not try again unless the user asks.";
-	const where = outcome.storage === "fragment" ? "The page is in the link." : "The page is in a secret Gist. Changes can take 5 minutes to show.";
-	return `Published. Give the user this link:\n${outcome.url}\n${where}`;
+	const note = outcome.updated ? "Updated the Gist. The link is the same. The change can take 5 minutes to show." : "The page is in a new secret Gist.";
+	return `Published. Give the user this link:\n${outcome.url}\n${note}`;
 }
 
 function renderText({ bundle, result, url, opened, previewError }: RenderOutcome): string {

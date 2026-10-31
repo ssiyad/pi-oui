@@ -7,9 +7,6 @@ import { fileURLToPath } from "node:url";
 
 const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
 
-/** Links longer than this use a Gist. Some chat apps cut long links. */
-export const FRAGMENT_LIMIT = 8 * 1024;
-
 export const config = {
 	/** Local page bundles: <storeDir>/<id>/{manifest.json,page.oui}. */
 	storeDir(): string {

@@ -13,7 +13,8 @@ account, or a login.
 This is the model of Claude artifacts, with these differences:
 
 - The agent writes OpenUI Lang, not HTML or JavaScript.
-- Pages live in the link itself or in a secret GitHub Gist. We run no backend.
+- Pages live in a secret GitHub Gist. The link holds only the Gist ID. We run
+  no backend.
 - The Pi package and the viewer are open source.
 
 ## Principle: we do no design
@@ -33,7 +34,6 @@ page cannot run code that a model wrote. An HTML page needs a sandbox for the
 same result.
 
 A page is also small. OpenUI reports about 1,400 output tokens for each screen.
-After compression, most pages fit in a URL.
 
 ## Parts
 
@@ -42,8 +42,8 @@ The project has three parts:
 1. **The Pi package.** Tools, commands and a skill. It runs in Node inside Pi.
 2. **The viewer.** A static React app on GitHub Pages. It renders pages with
    the OpenUI component library.
-3. **Storage adapters.** Code that writes a page to a link (in Pi) and reads it
-   back (in the viewer). Version 1 has two adapters: `fragment` and `gist`.
+3. **Storage.** A secret GitHub Gist holds each published page. Pi writes it,
+   and the viewer reads it. The link holds only the Gist ID.
 
 ```mermaid
 flowchart LR
@@ -51,10 +51,8 @@ flowchart LR
     Page --> Check["render_ui: parse + check"]
     Check --> Preview["localhost preview"]
     Check --> Publish["publish_ui"]
-    Publish -->|fragment| Link1["viewer/#/s/..."]
-    Publish -->|gist| Gist["secret Gist"] --> Link2["viewer/#/g/user/id"]
-    Link1 --> Viewer["static viewer"]
-    Link2 --> Viewer
+    Publish --> Gist["secret Gist"] --> Link["viewer/#/g/user/id"]
+    Link --> Viewer["static viewer"]
 ```
 
 ## OpenUI packages
@@ -203,7 +201,6 @@ URL fragment:
 
 | Route                         | Source                                        |
 | ----------------------------- | --------------------------------------------- |
-| `#/s/<version>.<payload>`     | The page is in the fragment.                  |
 | `#/g/<user>/<gist-id>`        | The page is in a secret Gist.                 |
 | `#/l/<id>`                    | A local page on the preview server.           |
 
@@ -232,20 +229,15 @@ A new `react-ui` version can change or remove components. When a version
 breaks old pages, we keep the old viewer build at `/v/<version>/`. The viewer
 reads the `library` marker and loads the matching build.
 
-## Storage adapters
+## Storage
 
-### `fragment`
-
-1. Compress `page.oui` with raw deflate.
-2. Encode the result as base64url.
-3. Put it in the fragment: `#/s/1.<payload>`.
-
-The viewer reverses this with `DecompressionStream("deflate-raw")`.
-
-Browsers do not send the fragment to the server. GitHub Pages never sees the
-page. A link cannot be changed or deleted, because the link is the page.
-
-### `gist`
+A link never holds the page. A page in the link would go everywhere that
+the link goes: chat history, browser history, link previews and logs. Nobody
+could delete it, and long links break in chat apps. So every published page
+goes into a secret Gist, and the link holds only the Gist ID. GitHub makes the
+Gist ID from 128 random bits, which is more than a UUID v4. The link also
+holds the GitHub username, because the raw URL returns 404 without the
+correct owner.
 
 1. Run `gh gist create` with `page.oui`. Gists are secret by default.
 2. Return `#/g/<user>/<gist-id>`.
@@ -274,13 +266,8 @@ with no console errors. The raw URL is slow to change:
 
 A secret Gist is not private. Anyone with the link can read it.
 
-### Which adapter
-
-- If the fragment link is 8 KB or less, use `fragment`.
-- If the link is longer than 8 KB, use `gist`.
-- If the user asks for a link that can be updated or deleted, use `gist`.
-
-The 8 KB limit is a guess. Some chat apps cut long links. We test it in phase 1.
+To publish, the user needs the GitHub CLI with a login that has the `gist`
+scope.
 
 ## Live data
 
@@ -320,7 +307,8 @@ Phase 1 has no `Query()` support. Phase 2 adds it.
 
 Publishing sends content to a public place. `publish_ui` always:
 
-1. Shows the title, the adapter, the size and the image hosts of the page.
+1. Shows the title, the Gist it creates or updates, the size and the image
+   hosts of the page.
 2. Scans the page for secrets: API keys, tokens, private keys, passwords.
 3. Asks the user to confirm in the TUI.
 
@@ -336,7 +324,7 @@ The repository is an npm workspace:
 ```text
 packages/
   viewer/    # Vite + React app for GitHub Pages and the localhost preview
-  pi/        # the Pi package: tools, commands, skill, adapters
+  pi/        # the Pi package: tools, commands, skill, Gist client
 scripts/
   library.ts      # writes library.spec.json and reference.md into packages/pi
   copy-viewer.mjs # copies the viewer build into packages/pi/viewer
@@ -347,9 +335,8 @@ workflow deploys `packages/viewer/dist` to GitHub Pages.
 
 ## Phases
 
-1. **Share a page.** `scaffold_ui`, `render_ui`, `publish_ui` with
-   `fragment` and `gist`, `unpublish_ui`, `list_ui`. The viewer on GitHub
-   Pages.
+1. **Share a page.** `scaffold_ui`, `render_ui`, `publish_ui` to a secret
+   Gist, `unpublish_ui`, `list_ui`. The viewer on GitHub Pages.
 2. **Live data.** `Query()` in the preview, and snapshots on publish.
    `import_ui` and remix.
 3. **Live preview while the agent writes.** Render the page from the
@@ -359,7 +346,6 @@ workflow deploys `packages/viewer/dist` to GitHub Pages.
 
 - The npm name and the viewer domain.
 - Can `createQueryManager()` run in Node with Pi tools as the provider?
-- What link length do Slack, WhatsApp and Raven accept?
 - Do `message_update` events contain partial tool call arguments?
 
 ## References

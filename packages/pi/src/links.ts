@@ -1,18 +1,12 @@
-// Storage adapters: the page in the link itself, or in a secret GitHub Gist.
+// Published pages live in secret GitHub Gists. A link holds only the Gist ID.
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { deflateRawSync } from "node:zlib";
 
 export const GIST_FILE = "page.oui";
 
 /** Runs a command. Same shape as pi.exec(). */
 export type Exec = (command: string, args: string[], options?: { timeout?: number }) => Promise<{ stdout: string; stderr: string; code: number }>;
-
-/** The page compressed into the URL fragment. Browsers do not send the fragment to the server. */
-export function fragmentLink(viewerUrl: string, message: string): string {
-	return `${viewerUrl}#/s/1.${deflateRawSync(message, { level: 9 }).toString("base64url")}`;
-}
 
 export function gistLink(viewerUrl: string, owner: string, id: string): string {
 	return `${viewerUrl}#/g/${encodeURIComponent(owner)}/${encodeURIComponent(id)}`;

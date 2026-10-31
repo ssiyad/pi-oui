@@ -47,20 +47,15 @@ link stays the same.
 - Do not put secrets, tokens, passwords or private customer data in a page.
   Anyone with the link can read it.
 
-## Storage
+## Publishing
 
-| Storage    | Where the page is            | Can change | Can delete |
-| ---------- | ---------------------------- | ---------- | ---------- |
-| `fragment` | In the link                  | No         | No         |
-| `gist`     | Secret Gist on the user's gh | Yes        | Yes        |
-
-`auto` uses `fragment` when the link is 8 KB or less, and `gist` when it is
-longer. A page that already has a Gist keeps it. Use `gist` when the user
-wants to update or delete the page later. `unpublish_ui({ id })` deletes the
+`publish_ui` puts the page in a secret GitHub Gist on the user's `gh` account.
+The link holds only the Gist ID, never the page. Publishing again updates the
+same Gist, and the link stays the same. `unpublish_ui({ id })` deletes the
 Gist. GitHub caches the page, so an update or a delete takes about 5 minutes
 to show. Tell the user this.
 
 ## Commands for the user
 
 - `/ui [id]` opens a page in the local preview.
-- `/share [id] [fragment|gist]` publishes a page.
+- `/share [id]` publishes a page.
