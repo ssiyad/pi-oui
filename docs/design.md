@@ -256,13 +256,23 @@ Later:
 
 ### Size
 
-The first load is about 770 KB gzipped: a 730 KB script and a 38 KB
+The first load is about 550 KB gzipped: a 515 KB script and a 37 KB
 stylesheet.
 KaTeX and icons load only when a page uses them. This is the cost of no design
 work. The browser caches the renderer, so a second page opens fast.
 
-The syntax highlighter of `CodeBlock` is 31% of the script, because it
-contains all Prism languages. See [the spike](spike-phase-1.md).
+The syntax highlighter of `CodeBlock` was 31% of the script, because it
+contained all Prism languages and all themes. See [the spike](spike-phase-1.md).
+Now two Vite aliases make it smaller:
+
+- `refractor/all` goes to `src/refractor.ts`. It has the common languages of
+  `refractor`, and also Docker, GraphQL, JSX, PowerShell, TOML and TSX. A code
+  block in a different language shows as plain text.
+- The CommonJS theme index goes to the ES module index, so the build keeps only
+  the two themes that OpenUI uses.
+
+The aliases remove 190 KB gzipped from the script. Use `npm run size` to
+measure.
 
 ### Old pages
 
