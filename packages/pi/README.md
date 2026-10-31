@@ -7,16 +7,29 @@ render it. The reader needs no Pi, no account and no login.
 
 ## Install
 
-lang-core sends telemetry from its `postinstall` script. npm 12 blocks this
-script. With older npm, turn the telemetry off before you install:
+```fish
+pi install npm:pi-oui
+```
+
+Add `-l` to install it only for the current project.
+
+To publish to a Gist, install the [GitHub CLI](https://cli.github.com) and run
+`gh auth login`.
+
+`@openuidev/lang-core` sends telemetry from its `postinstall` script. npm 12
+blocks this script. With older npm, turn the telemetry off before you install:
 
 ```fish
 set -x OPENUI_TELEMETRY_DISABLED 1
 pi install npm:pi-oui
 ```
 
-To publish to a Gist, install the [GitHub CLI](https://cli.github.com) and run
-`gh auth login`.
+To update or remove the package:
+
+```fish
+pi update --extension npm:pi-oui
+pi remove npm:pi-oui
+```
 
 ## Use
 
@@ -29,6 +42,13 @@ can share". The agent:
    preview, and the preview reloads after each render. If the page has
    `Query()` statements, `render_ui` runs them with the agent's tools.
 4. Calls `publish_ui` when you ask for a link. You confirm in Pi first.
+
+Other requests that work:
+
+- "Show my open GitHub issues as a table that I can share." The page gets the
+  issues with `Query()`. See [Live data](#live-data).
+- "Turn this CSV into a chart."
+- "Change the title of my last page and publish it again."
 
 | Tool           | What it does                                                     |
 | -------------- | ---------------------------------------------------------------- |
@@ -43,6 +63,8 @@ can share". The agent:
 | ------------- | ---------------------------------- |
 | `/ui [id]`    | Opens a page in the local preview. |
 | `/share [id]` | Publishes a page.                  |
+
+Without an ID, `/ui` and `/share` ask which page to use.
 
 ## Remix a page
 

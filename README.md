@@ -12,6 +12,51 @@ A page can use only the components of the
 [OpenUI](https://github.com/thesysdev/openui) library. It cannot contain HTML or
 scripts, so a shared page cannot run code that a model wrote.
 
+## Install
+
+Install the package from npm:
+
+```fish
+pi install npm:pi-oui
+```
+
+Add `-l` to install it only for the current project.
+
+To publish pages, install the [GitHub CLI](https://cli.github.com) and run
+`gh auth login`. Each published page goes into a secret Gist on this account.
+
+`@openuidev/lang-core` sends telemetry from its `postinstall` script. npm 12
+blocks this script. With older npm, run `set -x OPENUI_TELEMETRY_DISABLED 1`
+before you install.
+
+To update or remove the package:
+
+```fish
+pi update --extension npm:pi-oui
+pi remove npm:pi-oui
+```
+
+## Use
+
+1. Start Pi and ask for a page, for example "make a dashboard of these numbers
+   that I can share".
+2. The agent writes the page. The page opens in a local preview in your
+   browser.
+3. Ask for changes. The preview reloads after each change.
+4. Ask for a link, or run `/share`. Pi shows the possible secrets and the
+   external hosts in the page, and you confirm.
+5. Send the link. Anyone can open the page in a browser.
+
+To open a page again, run `/ui`. To change a page that someone shared, give
+the agent its link:
+
+```fish
+pi "remix https://ssiyad.github.io/pi-oui/#/g/<username>/<gist-id>"
+```
+
+For the tools, the commands, live data, the settings and the security rules,
+see the [package README](packages/pi/README.md).
+
 ## How it works
 
 ```mermaid
@@ -36,9 +81,6 @@ The project has three parts:
 
 There is no backend. We write no components and no CSS. OpenUI gives the
 components, the themes and the prompt that teaches the model to use them.
-
-For the tools, the commands, the settings and the security rules, see the
-[package README](packages/pi/README.md).
 
 ## Repository layout
 
