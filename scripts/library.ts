@@ -33,8 +33,8 @@ function specFile() {
 }
 
 // react-ui exports "./*", so its own package.json cannot be resolved. The
-// viewer pins an exact version, which is the version that renders pages.
+// renderer pins an exact version, which is the version that renders pages.
 function readReactUiVersion(): string {
-	const path = new URL("../packages/viewer/package.json", import.meta.url);
+	const path = new URL("../packages/renderer/package.json", import.meta.url);
 	return JSON.parse(readFileSync(path, "utf8")).dependencies["@openuidev/react-ui"];
 }

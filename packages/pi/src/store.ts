@@ -86,7 +86,7 @@ export class PageBundle {
 		return parseMessage(raw).content;
 	}
 
-	/** The page as an OpenUI stored message, which the viewer reads. Pass the source to publish the version that was checked. */
+	/** The page as an OpenUI stored message, which the renderer reads. Pass the source to publish the version that was checked. */
 	async toMessage(library: string, source?: string): Promise<string> {
 		const { title, created, updated } = this.manifest;
 		return buildMessage({

@@ -1,11 +1,11 @@
-# Builds the viewer and deploys it to GitHub Pages.
-name: Viewer
+# Builds the renderer and deploys it to GitHub Pages.
+name: Renderer
 
 on:
   push:
     branches: [master]
     paths:
-      - packages/viewer/**
+      - packages/renderer/**
       - package-lock.json
       - .github/workflows/pages.yml
   workflow_dispatch:
@@ -34,9 +34,9 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: npm run build:viewer
+      - run: npm run build:renderer
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: packages/viewer/dist
+          path: packages/renderer/dist
       - id: deploy
         uses: actions/deploy-pages@v4

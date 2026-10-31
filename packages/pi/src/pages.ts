@@ -48,17 +48,17 @@ export class Pages {
 		} catch (error) {
 			return { bundle, result, opened: false, previewError: (error as Error).message };
 		}
-		if (!preview) return { bundle, result, opened: false, previewError: "The viewer build is missing. Run `npm run build` in the pi-oui repo." };
+		if (!preview) return { bundle, result, opened: false, previewError: "The renderer build is missing. Run `npm run build` in the pi-oui repo." };
 
 		preview.notify(id);
 		const url = preview.pageUrl(id);
 		const justOpened = Date.now() - (this.#openedAt.get(id) ?? 0) < 15_000;
-		const opened = open && config.autoOpen() && result.ok && !justOpened && preview.viewerCount(id) === 0 && (await this.openBrowser(url));
+		const opened = open && config.autoOpen() && result.ok && !justOpened && preview.tabCount(id) === 0 && (await this.openBrowser(url));
 		if (opened) this.#openedAt.set(id, Date.now());
 		return { bundle, result, url, opened };
 	}
 
-	/** The preview server, started once on first use. Undefined when the viewer build is missing. */
+	/** The preview server, started once on first use. Undefined when the renderer build is missing. */
 	preview(): Promise<PreviewServer | undefined> {
 		this.#preview ??= this.#startPreview().catch((error) => {
 			this.#preview = undefined;
@@ -81,7 +81,7 @@ export class Pages {
 	}
 
 	async #startPreview(): Promise<PreviewServer | undefined> {
-		const dir = config.viewerDir();
+		const dir = config.rendererDir();
 		if (!dir) return undefined;
 		const port = Number(process.env.PI_UI_PORT ?? 0);
 		if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error(`PI_UI_PORT is not a port: ${process.env.PI_UI_PORT}`);

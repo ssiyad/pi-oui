@@ -8,8 +8,8 @@ export const GIST_FILE = "page.oui";
 /** Runs a command. Same shape as pi.exec(). */
 export type Exec = (command: string, args: string[], options?: { timeout?: number }) => Promise<{ stdout: string; stderr: string; code: number }>;
 
-export function gistLink(viewerUrl: string, owner: string, id: string): string {
-	return `${viewerUrl}#/g/${encodeURIComponent(owner)}/${encodeURIComponent(id)}`;
+export function gistLink(rendererUrl: string, owner: string, id: string): string {
+	return `${rendererUrl}#/g/${encodeURIComponent(owner)}/${encodeURIComponent(id)}`;
 }
 
 /** Secret Gists through the GitHub CLI, so that we never handle a token. */

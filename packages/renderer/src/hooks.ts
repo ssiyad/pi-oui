@@ -11,7 +11,7 @@ export function useHash(): string {
 	return hash;
 }
 
-/** Counts renders of a local page, so the viewer reloads it. Only the Pi preview server sends them. */
+/** Counts renders of a local page, so the renderer reloads it. Only the Pi preview server sends them. */
 export function useLiveReload(route: Route): number {
 	const [revision, setRevision] = useState(0);
 	const id = route.kind === "local" ? route.id : undefined;

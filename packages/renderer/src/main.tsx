@@ -1,6 +1,6 @@
 import "./zod";
 import "@openuidev/react-ui/styles/index.css";
-import "./viewer.css";
+import "./renderer.css";
 import { parseMessage, Renderer } from "@openuidev/react-lang";
 import { ThemeProvider } from "@openuidev/react-ui";
 import { openuiLibrary } from "@openuidev/react-ui/genui-lib";
@@ -45,7 +45,7 @@ function App() {
 	return (
 		<ThemeProvider mode={colorScheme()}>
 			<Banner route={route} />
-			<main className="viewer">
+			<main className="renderer">
 				{error ? <p>{error}</p> : <Problems problems={problems} />}
 				{!error && <Renderer library={openuiLibrary} response={page} isStreaming={false} onAction={handleAction} />}
 			</main>

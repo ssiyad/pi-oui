@@ -1,5 +1,5 @@
-// Checks a page with the OpenUI Lang parser, the same parser the viewer uses.
-// The viewer runs this file too, so it must not import Node modules.
+// Checks a page with the OpenUI Lang parser, the same parser the renderer uses.
+// The renderer runs this file too, so it must not import Node modules.
 import { createParser, type LibraryJSONSchema, type ParseResult, type Parser, type ValidationError } from "@openuidev/lang-core";
 
 export interface Problem {
@@ -86,12 +86,12 @@ function dataErrors(result: ParseResult): Problem[] {
 	}));
 }
 
-// The viewer opens only https links, so a button with another link does nothing.
+// The renderer opens only https links, so a button with another link does nothing.
 function linkErrors(source: string): Problem[] {
 	const links = [...source.matchAll(/@OpenUrl\(\s*"((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]);
 	return links
 		.filter((url) => !/^https:\/\//i.test(url))
-		.map((url) => ({ code: "not-https", message: `@OpenUrl("${url}") does nothing: the viewer opens only https:// links.` }));
+		.map((url) => ({ code: "not-https", message: `@OpenUrl("${url}") does nothing: the renderer opens only https:// links.` }));
 }
 
 function actionWarnings(source: string): Problem[] {

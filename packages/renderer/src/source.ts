@@ -48,7 +48,7 @@ async function readLimited(stream: ReadableStream<Uint8Array>): Promise<string> 
 		size += value.byteLength;
 		if (size > MAX_PAGE) {
 			await reader.cancel();
-			throw new Error("This page is larger than 2 MB. The viewer does not open it.");
+			throw new Error("This page is larger than 2 MB. The renderer does not open it.");
 		}
 		text += decoder.decode(value, { stream: true });
 	}

@@ -44,7 +44,7 @@ can share". The agent:
 
 ## Links
 
-A link opens the viewer, a static site on GitHub Pages. The page is in a
+A link opens the renderer, a static site on GitHub Pages. The page is in a
 secret GitHub Gist on your `gh` account. The link holds only your GitHub
 username and the Gist ID, which GitHub makes from 128 random bits. The link
 never holds the page.
@@ -63,15 +63,15 @@ Before a page goes public, Pi shows:
 
 ## Pages made without Pi
 
-The viewer can open any Gist that has a `page.oui` file in OpenUI Lang, also
+The renderer can open any Gist that has a `page.oui` file in OpenUI Lang, also
 when Pi did not make it:
 
 ```text
 https://ssiyad.github.io/pi-oui/#/g/<username>/<gist-id>
 ```
 
-The viewer runs the same checks as `render_ui`. If the page has problems, the
-viewer lists them above the page.
+The renderer runs the same checks as `render_ui`. If the page has problems, the
+renderer lists them above the page.
 
 ## Security
 
@@ -81,21 +81,22 @@ viewer lists them above the page.
   reader confirms first.
 - A banner above each shared page shows the GitHub user who made it and says
   that the content is user-generated.
-- The viewer does not open pages larger than 2 MB.
-- The viewer sets a content security policy. Scripts load only from the viewer,
-  and data loads only from the viewer and `gist.githubusercontent.com`.
+- The renderer does not open pages larger than 2 MB.
+- The renderer sets a content security policy. Scripts load only from the
+  renderer, and data loads only from the renderer and
+  `gist.githubusercontent.com`.
 - The local preview listens on `127.0.0.1` only and refuses other `Host`
   headers.
 
 ## Settings
 
-| Variable           | Default                                  | Use                                       |
-| ------------------ | ---------------------------------------- | ----------------------------------------- |
-| `PI_UI_DIR`        | `~/.pi/ui`                               | Where pages are kept.                     |
-| `PI_UI_VIEWER_URL` | `https://ssiyad.github.io/pi-oui/` | The viewer that links point to.           |
-| `PI_UI_OPEN`       | `1`                                      | `0` stops `render_ui` opening the browser. |
-| `PI_UI_PORT`       | Random                                   | Port of the local preview.                |
-| `PI_UI_VIEWER_DIR` | The package's `viewer/`                  | Another viewer build for the preview.     |
+| Variable             | Default                            | Use                                        |
+| -------------------- | ---------------------------------- | ------------------------------------------ |
+| `PI_UI_DIR`          | `~/.pi/ui`                         | Where pages are kept.                      |
+| `PI_UI_RENDERER_URL` | `https://ssiyad.github.io/pi-oui/` | The renderer that links point to.          |
+| `PI_UI_OPEN`         | `1`                                | `0` stops `render_ui` opening the browser. |
+| `PI_UI_PORT`         | Random                             | Port of the local preview.                 |
+| `PI_UI_RENDERER_DIR` | The package's `renderer/`          | Another renderer build for the preview.    |
 
 ## Develop
 
@@ -103,7 +104,7 @@ From the repository root:
 
 ```fish
 npm install
-npm run build   # library spec, skill reference, viewer
+npm run build   # library spec, skill reference, renderer
 npm test
 npm run check
 ```

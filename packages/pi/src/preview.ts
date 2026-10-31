@@ -1,5 +1,5 @@
-// Localhost preview: serves the viewer build and local pages, and tells open
-// viewers to reload when a page renders again.
+// Localhost preview: serves the renderer build and local pages, and tells open
+// tabs to reload when a page renders again.
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
@@ -11,7 +11,7 @@ import { isPageId } from "./store.ts";
 /** Returns the stored message of a local page. */
 export type PageMessages = (id: string) => Promise<string>;
 
-// Same policy as the published viewer, but pages come from this server.
+// Same policy as the published renderer, but pages come from this server.
 const CSP = [
 	"default-src 'self'",
 	"script-src 'self'",
@@ -40,14 +40,14 @@ const TYPES: Record<string, string> = {
 export class PreviewServer {
 	url: string | undefined;
 	#hosts = new Set<string>();
-	#viewerDir: string;
+	#rendererDir: string;
 	#messages: PageMessages;
 	#server: Server | undefined;
 	/** Open event streams and the page each one shows. */
-	#viewers = new Map<ServerResponse, string>();
+	#tabs = new Map<ServerResponse, string>();
 
-	constructor(viewerDir: string, messages: PageMessages) {
-		this.#viewerDir = resolve(viewerDir);
+	constructor(rendererDir: string, messages: PageMessages) {
+		this.#rendererDir = resolve(rendererDir);
 		this.#messages = messages;
 	}
 
@@ -77,13 +77,13 @@ export class PreviewServer {
 	}
 
 	/** Number of open tabs that show the page. */
-	viewerCount(id: string): number {
-		return [...this.#viewers.values()].filter((page) => page === id).length;
+	tabCount(id: string): number {
+		return [...this.#tabs.values()].filter((page) => page === id).length;
 	}
 
 	/** Tells the tabs that show the page that it changed. */
 	notify(id: string): void {
-		for (const [viewer, page] of this.#viewers) if (page === id) viewer.write(`event: render\ndata: ${id}\n\n`);
+		for (const [tab, page] of this.#tabs) if (page === id) tab.write(`event: render\ndata: ${id}\n\n`);
 	}
 
 	async close(): Promise<void> {
@@ -91,8 +91,8 @@ export class PreviewServer {
 		this.#server = undefined;
 		this.url = undefined;
 		if (!server) return;
-		for (const viewer of this.#viewers.keys()) viewer.end();
-		this.#viewers.clear();
+		for (const tab of this.#tabs.keys()) tab.end();
+		this.#tabs.clear();
 		server.closeAllConnections();
 		await new Promise<void>((done) => server.close(() => done()));
 	}
@@ -114,8 +114,8 @@ export class PreviewServer {
 	#openEvents(res: ServerResponse, id: string): void {
 		res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-store" });
 		res.write(": connected\n\n");
-		this.#viewers.set(res, id);
-		res.on("close", () => this.#viewers.delete(res));
+		this.#tabs.set(res, id);
+		res.on("close", () => this.#tabs.delete(res));
 	}
 
 	async #sendPage(res: ServerResponse, id: string): Promise<void> {
@@ -127,8 +127,8 @@ export class PreviewServer {
 	}
 
 	async #sendFile(res: ServerResponse, path: string): Promise<void> {
-		const file = resolve(this.#viewerDir, `.${path === "/" ? "/index.html" : path}`);
-		if (!file.startsWith(this.#viewerDir + sep)) return fail(res, 404, "Not found");
+		const file = resolve(this.#rendererDir, `.${path === "/" ? "/index.html" : path}`);
+		if (!file.startsWith(this.#rendererDir + sep)) return fail(res, 404, "Not found");
 		const info = await stat(file).catch(() => undefined);
 		if (!info?.isFile()) return fail(res, 404, "Not found");
 

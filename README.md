@@ -20,15 +20,15 @@ flowchart LR
     Page --> Check["render_ui: parse + check"]
     Check --> Preview["localhost preview"]
     Check --> Publish["publish_ui"]
-    Publish --> Gist["secret Gist"] --> Link["viewer/#/g/user/id"]
-    Link --> Viewer["static viewer"]
+    Publish --> Gist["secret Gist"] --> Link["renderer/#/g/user/id"]
+    Link --> Renderer["static renderer"]
 ```
 
 The project has three parts:
 
 1. **The Pi package.** It adds tools, commands and a skill to Pi. The agent
    uses them to write, check, preview and publish pages.
-2. **The viewer.** A static React app on GitHub Pages. It renders pages with
+2. **The renderer.** A static React app on GitHub Pages. It renders pages with
    the OpenUI components. The local preview uses the same app.
 3. **Storage.** A secret GitHub Gist on your `gh` account holds each published
    page. The link holds only your GitHub username and the Gist ID. It never
@@ -43,7 +43,7 @@ For the tools, the commands, the settings and the security rules, see the
 ## Status
 
 Phase 1 is done: make, check, preview, publish and delete pages. The package
-is not on npm yet, and the viewer is not on GitHub Pages yet.
+is not on npm yet, and the renderer is not on GitHub Pages yet.
 
 The next phases are in the [design document](docs/design.md#phases):
 
@@ -57,11 +57,11 @@ The repository is an npm workspace:
 ```text
 packages/
   pi/        # the Pi package: tools, commands, skill, Gist client
-  viewer/    # Vite + React app for GitHub Pages and the local preview
+  renderer/    # Vite + React app for GitHub Pages and the local preview
 scripts/
   library.ts      # writes library.spec.json and reference.md into packages/pi
-  copy-viewer.mjs # copies the viewer build into packages/pi/viewer
-  size.mjs        # prints the size of each file in the viewer build
+  copy-renderer.mjs # copies the renderer build into packages/pi/renderer
+  size.mjs        # prints the size of each file in the renderer build
 docs/
   design.md          # the design
   spike-phase-1.md   # what the phase 1 spike found
@@ -82,7 +82,7 @@ npm install
 Build, test and type check from the repository root:
 
 ```fish
-npm run build   # library spec, skill reference, viewer
+npm run build   # library spec, skill reference, renderer
 npm test
 npm run check
 ```
@@ -93,19 +93,19 @@ Load the package in Pi without installing it:
 pi -e packages/pi/src/index.ts --skill packages/pi/skills/openui-page
 ```
 
-To try the viewer alone, run `npm run dev -w packages/viewer`.
+To try the renderer alone, run `npm run dev -w packages/renderer`.
 
-## Deploy the viewer
+## Deploy the renderer
 
-The workflow in `.github/workflows/pages.yml` builds the viewer and deploys it
-to GitHub Pages. It runs on each push to `master` that changes the viewer, and
+The workflow in `.github/workflows/pages.yml` builds the renderer and deploys it
+to GitHub Pages. It runs on each push to `master` that changes the renderer, and
 you can also start it by hand.
 
 1. In the repository settings, set the Pages source to GitHub Actions.
-2. Push to `master`, or run the "Viewer" workflow.
+2. Push to `master`, or run the "Renderer" workflow.
 
 Links point to `https://ssiyad.github.io/pi-oui/` by default. To use another
-viewer, set `PI_UI_VIEWER_URL`.
+renderer, set `PI_UI_RENDERER_URL`.
 
 ## References
 

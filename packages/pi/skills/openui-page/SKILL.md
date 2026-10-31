@@ -5,7 +5,7 @@ description: Make a web page that anyone can open from a link, like a Claude art
 
 # OpenUI pages
 
-A page is one file, `page.oui`, in OpenUI Lang. The viewer renders it with the
+A page is one file, `page.oui`, in OpenUI Lang. The renderer shows it with the
 OpenUI components. You write no HTML, CSS or JavaScript.
 
 ## Workflow

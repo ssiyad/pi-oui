@@ -1,4 +1,4 @@
-/* The viewer's only CSS. OpenUI styles everything inside the page. The
+/* The renderer's only CSS. OpenUI styles everything inside the page. The
    banner uses the OpenUI theme variables, so it follows light and dark mode. */
 
 /* ThemeProvider sets its variables on body but does not paint the page. */
@@ -32,7 +32,7 @@ body {
 	color: var(--openui-text-neutral-primary);
 }
 
-.viewer {
+.renderer {
 	max-width: 960px;
 	margin: 0 auto;
 	padding: 24px;

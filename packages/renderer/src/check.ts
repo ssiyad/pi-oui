@@ -7,7 +7,7 @@ import { PageChecker, type Problem } from "../../pi/src/checker";
 let checker: PageChecker | undefined;
 
 export function findProblems(text: string): Problem[] {
-	checker ??= new PageChecker({ library: "viewer", root: openuiLibrary.root as string, schema: openuiLibrary.toJSONSchema() });
+	checker ??= new PageChecker({ library: "renderer", root: openuiLibrary.root as string, schema: openuiLibrary.toJSONSchema() });
 	const result = checker.check(parseMessage(text).content);
 	return [...result.errors, ...result.warnings];
 }

@@ -25,12 +25,12 @@ interface Plan {
 export class Publisher {
 	#pages: Pages;
 	#gist: GistClient;
-	#viewerUrl: string;
+	#rendererUrl: string;
 
-	constructor(pages: Pages, gist: GistClient, viewerUrl = config.viewerUrl()) {
+	constructor(pages: Pages, gist: GistClient, rendererUrl = config.rendererUrl()) {
 		this.#pages = pages;
 		this.#gist = gist;
-		this.#viewerUrl = viewerUrl;
+		this.#rendererUrl = rendererUrl;
 	}
 
 	/** Creates the Gist of a page, or updates it. The link stays the same after an update. */
@@ -80,13 +80,13 @@ export class Publisher {
 		const existing = bundle.manifest.links.gist;
 		if (existing) {
 			await this.#gist.update(existing.id, message);
-			// Build the link again: the viewer URL can change after the first publish.
-			const url = gistLink(this.#viewerUrl, existing.owner, existing.id);
+			// Build the link again: the renderer URL can change after the first publish.
+			const url = gistLink(this.#rendererUrl, existing.owner, existing.id);
 			await bundle.update((m) => ({ links: { ...m.links, gist: { ...existing, url, at: new Date().toISOString() } } }));
 			return url;
 		}
 		const { id, owner } = await this.#gist.create(message, bundle.manifest.title);
-		const url = gistLink(this.#viewerUrl, owner, id);
+		const url = gistLink(this.#rendererUrl, owner, id);
 		await bundle.update((m) => ({ links: { ...m.links, gist: { id, owner, url, at: new Date().toISOString() } } }));
 		return url;
 	}

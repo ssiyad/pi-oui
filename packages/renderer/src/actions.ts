@@ -32,11 +32,11 @@ export function guardLinks(): () => void {
 function openLink(value: unknown): void {
 	const url = httpsUrl(value);
 	if (url?.protocol !== "https:") {
-		alert(`This page links to an address that is not https:\n\n${String(value)}\n\nThe viewer does not open it.`);
+		alert(`This page links to an address that is not https:\n\n${String(value)}\n\nThe renderer does not open it.`);
 		return;
 	}
 	if (!confirm(`This page wants to open a link:\n\n${url.href}\n\nOpen it?`)) return;
-	// A new tab without opener: the viewer itself never navigates away.
+	// A new tab without opener: the renderer itself never navigates away.
 	window.open(url.href, "_blank", "noopener,noreferrer");
 }
 

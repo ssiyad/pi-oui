@@ -7,12 +7,12 @@
   ],
   "scripts": {
     "library": "tsx scripts/library.ts",
-    "build:viewer": "npm run build -w packages/viewer",
-    "copy:viewer": "node scripts/copy-viewer.mjs",
-    "build": "npm run library && npm run build:viewer && npm run copy:viewer",
+    "build:renderer": "npm run build -w packages/renderer",
+    "copy:renderer": "node scripts/copy-renderer.mjs",
+    "build": "npm run library && npm run build:renderer && npm run copy:renderer",
     "size": "node scripts/size.mjs",
     "test": "npm test -w packages/pi",
-    "check": "npm run check -w packages/pi && npm run check -w packages/viewer"
+    "check": "npm run check -w packages/pi && npm run check -w packages/renderer"
   },
   "devDependencies": {
     "tsx": "4.23.15",

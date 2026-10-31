@@ -10,7 +10,7 @@ import { Pages } from "../src/pages.ts";
 import { type ConfirmUI, Publisher } from "../src/publisher.ts";
 import { PageStore } from "../src/store.ts";
 
-const VIEWER = "https://v.example/";
+const RENDERER = "https://v.example/";
 let root: string;
 let ghCalls: string[][];
 let pages: Pages;
@@ -31,15 +31,15 @@ function ui(answer: boolean): ConfirmUI & { asked: string[] } {
 
 before(async () => {
 	root = await mkdtemp(join(tmpdir(), "pi-ui-publish-"));
-	const viewer = join(root, "viewer");
-	await mkdir(join(viewer, "assets"), { recursive: true });
-	await writeFile(join(viewer, "index.html"), "<!doctype html><title>viewer</title>");
-	await writeFile(join(viewer, "assets", "app.js"), "console.log(1)");
+	const renderer = join(root, "renderer");
+	await mkdir(join(renderer, "assets"), { recursive: true });
+	await writeFile(join(renderer, "index.html"), "<!doctype html><title>renderer</title>");
+	await writeFile(join(renderer, "assets", "app.js"), "console.log(1)");
 	await writeFile(join(root, "secret.txt"), "do not serve");
-	process.env.PI_UI_VIEWER_DIR = viewer;
+	process.env.PI_UI_RENDERER_DIR = renderer;
 	ghCalls = [];
 	pages = new Pages(exec, new PageStore(join(root, "store")));
-	publisher = new Publisher(pages, new GistClient(exec), VIEWER);
+	publisher = new Publisher(pages, new GistClient(exec), RENDERER);
 });
 after(async () => {
 	await pages.close();
@@ -70,18 +70,18 @@ describe("Publisher", () => {
 		const bundle = await pages.store.create("Small");
 		await writeFile(bundle.sourcePath, 'root = Stack([h])\nh = CardHeader("Unique marker 4711")\n');
 		const outcome = await publisher.publish(bundle.manifest.id, ui(true));
-		assert.equal(outcome.status === "published" && outcome.url, `${VIEWER}#/g/ssiyad/abc123`);
+		assert.equal(outcome.status === "published" && outcome.url, `${RENDERER}#/g/ssiyad/abc123`);
 		assert.ok(outcome.status === "published" && !outcome.url.includes("4711"));
 	});
 
-	it("builds the link again when the viewer URL changes", async () => {
+	it("builds the link again when the renderer URL changes", async () => {
 		const { manifest } = await pages.store.create("Moved");
 		const local = new Publisher(pages, new GistClient(exec), "http://127.0.0.1:4173/");
 		const first = await local.publish(manifest.id, ui(true));
 		assert.equal(first.status === "published" && first.url, "http://127.0.0.1:4173/#/g/ssiyad/abc123");
 		const again = await publisher.publish(manifest.id, ui(true));
-		assert.equal(again.status === "published" && again.url, `${VIEWER}#/g/ssiyad/abc123`);
-		assert.equal((await pages.store.load(manifest.id)).manifest.links.gist?.url, `${VIEWER}#/g/ssiyad/abc123`);
+		assert.equal(again.status === "published" && again.url, `${RENDERER}#/g/ssiyad/abc123`);
+		assert.equal((await pages.store.load(manifest.id)).manifest.links.gist?.url, `${RENDERER}#/g/ssiyad/abc123`);
 	});
 
 	it("warns about secrets in the confirm dialog", async () => {
@@ -97,11 +97,11 @@ describe("Publisher", () => {
 		const { manifest } = await pages.store.create("Gisted");
 		ghCalls = [];
 		const first = await publisher.publish(manifest.id, ui(true));
-		assert.deepEqual(first, { status: "published", url: `${VIEWER}#/g/ssiyad/abc123`, updated: false, review: { secrets: [], hosts: [] } });
+		assert.deepEqual(first, { status: "published", url: `${RENDERER}#/g/ssiyad/abc123`, updated: false, review: { secrets: [], hosts: [] } });
 
 		const answer = ui(true);
 		const again = await publisher.publish(manifest.id, answer);
-		assert.deepEqual(again.status === "published" && [again.url, again.updated], [`${VIEWER}#/g/ssiyad/abc123`, true]);
+		assert.deepEqual(again.status === "published" && [again.url, again.updated], [`${RENDERER}#/g/ssiyad/abc123`, true]);
 		assert.match(answer.asked[0], /Updates secret Gist abc123/);
 		assert.deepEqual(ghCalls.map((c) => c.slice(0, 2).join(" ")), ["gist create", "gist edit"]);
 
@@ -125,7 +125,7 @@ describe("checker rules for shared pages", () => {
 });
 
 describe("PreviewServer", () => {
-	it("renders, serves the viewer and the page, and opens the browser once", async () => {
+	it("renders, serves the renderer and the page, and opens the browser once", async () => {
 		const { manifest } = await pages.store.create("Served");
 		const outcome = await pages.render(manifest.id, true);
 		assert.equal(outcome.result.ok, true);
@@ -160,7 +160,7 @@ describe("PreviewServer", () => {
 		assert.equal((await get(base, "/events?page=../x")).status, 400);
 	});
 
-	it("tells open viewers about a new render", async () => {
+	it("tells open tabs about a new render", async () => {
 		const { manifest } = await pages.store.create("Live");
 		const server = await pages.preview();
 		const base = new URL(server?.url ?? "");
@@ -174,7 +174,7 @@ describe("PreviewServer", () => {
 				});
 			}).end();
 		});
-		while (server?.viewerCount(manifest.id) === 0) await new Promise((r) => setTimeout(r, 10));
+		while (server?.tabCount(manifest.id) === 0) await new Promise((r) => setTimeout(r, 10));
 		const outcome = await pages.render(manifest.id, true);
 		assert.equal(outcome.opened, false, "does not open a second tab");
 		assert.match(await event, new RegExp(`data: ${manifest.id}`));

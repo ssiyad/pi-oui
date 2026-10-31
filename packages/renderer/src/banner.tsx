@@ -1,4 +1,4 @@
-// The parts of the viewer around a page: a banner that says who made it,
+// The parts of the renderer around a page: a banner that says who made it,
 // and the problems that the page has.
 import type { Problem } from "../../pi/src/checker";
 import { Callout } from "@openuidev/react-ui";

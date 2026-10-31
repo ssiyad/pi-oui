@@ -1,5 +1,5 @@
 // Paths and settings. Environment variables override the defaults, so tests
-// and users can move the store and the viewer.
+// and users can move the store and the renderer.
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -13,9 +13,9 @@ export const config = {
 		return process.env.PI_UI_DIR ?? join(homedir(), ".pi", "ui");
 	},
 
-	/** The public viewer. Shared links point here. */
-	viewerUrl(): string {
-		const url = process.env.PI_UI_VIEWER_URL ?? "https://ssiyad.github.io/pi-oui/";
+	/** The public renderer. Shared links point here. */
+	rendererUrl(): string {
+		const url = process.env.PI_UI_RENDERER_URL ?? "https://ssiyad.github.io/pi-oui/";
 		return url.endsWith("/") ? url : `${url}/`;
 	},
 
@@ -25,14 +25,14 @@ export const config = {
 	},
 
 	/**
-	 * The viewer build. A published package has it in viewer/. In the
-	 * workspace, the viewer package builds it into its own dist/.
+	 * The renderer build. A published package has it in renderer/. In the
+	 * workspace, the renderer package builds it into its own dist/.
 	 */
-	viewerDir(): string | undefined {
+	rendererDir(): string | undefined {
 		const candidates = [
-			process.env.PI_UI_VIEWER_DIR,
-			join(PACKAGE_ROOT, "viewer"),
-			join(PACKAGE_ROOT, "..", "viewer", "dist"),
+			process.env.PI_UI_RENDERER_DIR,
+			join(PACKAGE_ROOT, "renderer"),
+			join(PACKAGE_ROOT, "..", "renderer", "dist"),
 		];
 		return candidates.find((dir) => dir && existsSync(join(dir, "index.html")));
 	},

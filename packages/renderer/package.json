@@ -1,5 +1,5 @@
 {
-  "name": "pi-oui-viewer",
+  "name": "pi-oui-renderer",
   "version": "0.0.0",
   "private": true,
   "type": "module",
