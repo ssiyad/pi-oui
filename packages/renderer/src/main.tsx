@@ -3,13 +3,13 @@ import "@openuidev/react-ui/styles/index.css";
 import "./renderer.css";
 import { parseMessage, Renderer } from "@openuidev/react-lang";
 import { ThemeProvider } from "@openuidev/react-ui";
-import { openuiLibrary } from "@openuidev/react-ui/genui-lib";
 import { StrictMode, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { guardLinks, handleAction, handleOwnAction } from "./actions";
 import { Banner, Problems } from "./banner";
 import { findProblems } from "./check";
 import { useHash } from "./hooks";
+import { library } from "./library";
 import { LANDING, loadPage, parseRoute } from "./source";
 
 function App() {
@@ -49,7 +49,7 @@ function App() {
 			<Banner route={route} />
 			<main className="renderer" data-trusted={own || undefined}>
 				{error ? <p>{error}</p> : <Problems problems={problems} />}
-				{!error && <Renderer library={openuiLibrary} response={page} isStreaming={false} onAction={own ? handleOwnAction : handleAction} />}
+				{!error && <Renderer library={library} response={page} isStreaming={false} onAction={own ? handleOwnAction : handleAction} />}
 			</main>
 		</ThemeProvider>
 	);
