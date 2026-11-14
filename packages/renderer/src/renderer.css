@@ -48,3 +48,16 @@ body {
 	flex-direction: column;
 	gap: 16px;
 }
+
+/* Most pages load fast. The delay keeps the message from flashing. */
+.renderer-loading {
+	margin: 0;
+	color: var(--openui-text-neutral-secondary);
+	animation: renderer-appear 0s 300ms both;
+}
+
+@keyframes renderer-appear {
+	from {
+		visibility: hidden;
+	}
+}

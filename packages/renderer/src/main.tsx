@@ -48,8 +48,10 @@ function App() {
 		<ThemeProvider mode={colorScheme()}>
 			<Banner route={route} />
 			<main className="renderer" data-trusted={own || undefined}>
-				{error ? <p>{error}</p> : <Problems problems={problems} />}
-				{!error && <Renderer library={library} response={page} isStreaming={false} onAction={own ? handleOwnAction : handleAction} />}
+				{error ? <p>{error}</p> : page === null ? <p className="renderer-loading">Loading the page…</p> : <Problems problems={problems} />}
+				{!error && page !== null && (
+					<Renderer library={library} response={page} isStreaming={false} onAction={own ? handleOwnAction : handleAction} />
+				)}
 			</main>
 		</ThemeProvider>
 	);

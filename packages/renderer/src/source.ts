@@ -7,6 +7,10 @@ import landing from "./landing.oui?raw";
 // Stop before a huge page uses up the memory of the tab.
 const MAX_PAGE = 2 * 1024 * 1024;
 
+// Some networks block the Gist host and hold the request open for minutes.
+// Without a limit, the reader sees an empty page and no reason.
+const TIMEOUT = 20_000;
+
 // The landing page in the same form as a published page, so it gets a title.
 export const LANDING = buildMessage({ content: landing, context: { title: "pi-oui: make a web page in Pi and share it with a link" }, end: true });
 
@@ -36,9 +40,19 @@ export async function loadPage(route: Route): Promise<string> {
 }
 
 async function fetchText(url: string): Promise<string> {
-	const response = await fetch(url, { cache: "no-store" });
-	if (!response.ok || !response.body) throw new Error(`Cannot load the page (HTTP ${response.status}). The owner may have deleted it.`);
-	return readLimited(response.body);
+	const signal = AbortSignal.timeout(TIMEOUT);
+	try {
+		const response = await fetch(url, { cache: "no-store", signal });
+		if (!response.ok || !response.body) throw new Error(`Cannot load the page (HTTP ${response.status}). The owner may have deleted it.`);
+		return await readLimited(response.body);
+	} catch (e) {
+		// fetch rejects with a TypeError when the network fails, and with the signal's reason on a timeout.
+		if (e instanceof TypeError || signal.aborted) {
+			const host = new URL(url).host;
+			throw new Error(`Cannot reach ${host}. Your network or a browser extension may block it. Try again, or open the link on another network.`);
+		}
+		throw e;
+	}
 }
 
 async function readLimited(stream: ReadableStream<Uint8Array>): Promise<string> {
